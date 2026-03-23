@@ -1,0 +1,1726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Piano Note Trainer</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #fafafa;
+      color: #222;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+    }
+
+    h1 {
+      font-size: 1.4rem;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    /* Settings bar */
+    .settings {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+    }
+    .settings label {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    .settings select {
+      font-size: 0.9rem;
+      padding: 0.2rem 0.4rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+    }
+    .toggle-btn {
+      font-size: 0.9rem;
+      padding: 0.2rem 0.8rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .toggle-btn.active {
+      background: #333;
+      color: #fff;
+      border-color: #333;
+    }
+
+    /* Score */
+    .score {
+      font-size: 0.95rem;
+      color: #666;
+      margin-bottom: 0.8rem;
+    }
+
+    /* Staff SVG */
+    .staff-container {
+      margin-bottom: 1.2rem;
+    }
+    .staff-container svg {
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* Prompt for keyboard modes */
+    .prompt {
+      font-size: 1.8rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      min-height: 2.2em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .prompt .prompt-label {
+      font-size: 0.85rem;
+      font-weight: 400;
+      color: #888;
+      margin-right: 0.5rem;
+    }
+
+    /* Piano keyboard */
+    .piano-container {
+      margin-bottom: 1.2rem;
+      overflow-x: auto;
+      max-width: 100%;
+    }
+    .piano {
+      position: relative;
+      height: 140px;
+      display: inline-block;
+    }
+    .white-key {
+      display: inline-block;
+      width: 36px;
+      height: 140px;
+      background: #fff;
+      border: 1px solid #999;
+      border-radius: 0 0 4px 4px;
+      cursor: pointer;
+      position: relative;
+      z-index: 1;
+      transition: background 0.15s;
+    }
+    .key-label {
+      position: absolute;
+      bottom: 6px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 0.65rem;
+      color: #999;
+      pointer-events: none;
+      user-select: none;
+    }
+    .key-mnemonic {
+      position: absolute;
+      bottom: 22px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 0.5rem;
+      color: #bbb;
+      pointer-events: none;
+      user-select: none;
+      line-height: 1.1;
+    }
+    .black-key .key-label {
+      color: #aaa;
+      bottom: 4px;
+      font-size: 0.55rem;
+    }
+    .white-key:hover { background: #f0f0f0; }
+    .white-key.correct { background: #8fdf8f; }
+    .white-key.wrong { background: #f08080; }
+    .white-key.hint { background: #8fdf8f; }
+    .white-key.highlighted { background: #b3d9ff; border-color: #4a90d9; }
+
+    .black-key {
+      display: inline-block;
+      width: 24px;
+      height: 90px;
+      background: #222;
+      border: 1px solid #000;
+      border-radius: 0 0 3px 3px;
+      cursor: pointer;
+      position: absolute;
+      z-index: 2;
+      transition: background 0.15s;
+    }
+    .black-key:hover { background: #444; }
+    .black-key.correct { background: #4caf50; }
+    .black-key.wrong { background: #d32f2f; }
+    .black-key.hint { background: #4caf50; }
+    .black-key.highlighted { background: #4a90d9; border-color: #2a6cb9; }
+
+    /* House brackets above piano */
+    .house-labels {
+      position: relative;
+      height: 28px;
+      margin-bottom: 2px;
+    }
+    .house-label {
+      position: absolute;
+      font-size: 0.6rem;
+      color: #999;
+      text-align: center;
+      pointer-events: none;
+      user-select: none;
+    }
+    .house-bracket {
+      position: absolute;
+      border: 1px solid #ccc;
+      border-bottom: none;
+      border-radius: 4px 4px 0 0;
+      pointer-events: none;
+    }
+
+    /* Acronyms panel */
+    .acronyms-panel {
+      background: #f5f5f0;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 0.8rem 1.2rem;
+      margin-bottom: 1rem;
+      max-width: 500px;
+      font-size: 0.85rem;
+      line-height: 1.6;
+      text-align: left;
+    }
+    .acronyms-panel h3 {
+      font-size: 0.9rem;
+      margin-bottom: 0.4rem;
+    }
+    .acronyms-panel .clef-section {
+      margin-bottom: 0.5rem;
+    }
+    .acronyms-panel .clef-section:last-child {
+      margin-bottom: 0;
+    }
+    .acronyms-panel .label {
+      font-weight: 600;
+      color: #555;
+    }
+    .acronyms-panel .letters {
+      font-weight: 700;
+      color: #333;
+    }
+
+    /* Timer / Challenge */
+    .timer-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      margin-bottom: 0.8rem;
+      font-size: 0.95rem;
+    }
+    .challenge-btn {
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 0.4rem 1rem;
+      background: #333;
+      color: #fff;
+      border: 1px solid #333;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .challenge-btn:hover { background: #555; }
+    .challenge-btn.stop { background: #d32f2f; border-color: #d32f2f; }
+    .challenge-btn.stop:hover { background: #b71c1c; }
+    .countdown {
+      font-size: 1.4rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      min-width: 3ch;
+      text-align: center;
+    }
+    .countdown.urgent { color: #d32f2f; }
+    .response-time {
+      font-size: 0.85rem;
+      color: #999;
+      min-width: 60px;
+    }
+    .streak {
+      font-size: 0.85rem;
+      color: #888;
+    }
+
+    /* Challenge results overlay */
+    .results-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    .results-card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 2rem;
+      max-width: 360px;
+      width: 90%;
+      text-align: center;
+    }
+    .results-card h2 {
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+    .results-card .stat {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.3rem 0;
+      font-size: 0.95rem;
+      border-bottom: 1px solid #eee;
+    }
+    .results-card .stat:last-of-type { border-bottom: none; }
+    .results-card .stat-label { color: #666; }
+    .results-card .stat-value { font-weight: 600; }
+    .results-card button {
+      margin-top: 1.2rem;
+      font-family: inherit;
+      font-size: 1rem;
+      padding: 0.5rem 1.5rem;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .results-card button:hover { background: #555; }
+
+    /* Note buttons (for name-the-key mode) */
+    .note-buttons {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+    .note-btn {
+      font-family: inherit;
+      font-size: 1.1rem;
+      font-weight: 600;
+      padding: 0.5rem 0.9rem;
+      min-width: 44px;
+      background: #fff;
+      color: #222;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .note-btn:hover { border-color: #888; }
+    .note-btn.correct { background: #8fdf8f; border-color: #4caf50; }
+    .note-btn.wrong { background: #f08080; border-color: #d32f2f; }
+    .note-btn.hint { background: #8fdf8f; border-color: #4caf50; }
+
+    /* Progression progress */
+    .prog-progress {
+      display: flex;
+      gap: 0.3rem;
+      justify-content: center;
+      margin-bottom: 0.8rem;
+      flex-wrap: wrap;
+    }
+    .prog-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: #ddd;
+      transition: background 0.2s;
+    }
+    .prog-dot.done { background: #4caf50; }
+    .prog-dot.current { background: #4a90d9; transform: scale(1.3); }
+    .prog-dot.wrong-dot { background: #d32f2f; }
+
+    /* Feedback message */
+    .feedback {
+      font-size: 0.95rem;
+      height: 1.4em;
+      color: #888;
+      margin-bottom: 0.5rem;
+    }
+
+    @media (max-width: 500px) {
+      .white-key { width: 28px; height: 110px; }
+      .black-key { width: 20px; height: 70px; }
+      .prompt { font-size: 1.4rem; }
+    }
+  </style>
+</head>
+<body>
+  <h1>Piano Note Trainer</h1>
+
+  <div class="settings">
+    <label>
+      Mode:
+      <select id="mode-select">
+        <option value="staff-reading">Staff Reading</option>
+        <option value="name-the-key">Name the Key</option>
+        <option value="find-the-key">Find the Key</option>
+        <option value="build-chord">Build the Chord</option>
+        <option value="name-chord">Name the Chord</option>
+        <option value="chord-progression">Chord Progression</option>
+      </select>
+    </label>
+    <label id="clef-label">
+      Clef:
+      <select id="clef-select">
+        <option value="treble">Treble</option>
+        <option value="bass">Bass</option>
+        <option value="grand">Grand Staff</option>
+      </select>
+    </label>
+    <label id="acc-label">
+      Accidentals:
+      <button class="toggle-btn" id="acc-toggle">Off</button>
+    </label>
+    <label id="range-label">
+      Range:
+      <select id="range-select">
+        <option value="close">Close</option>
+        <option value="extended">Extended</option>
+      </select>
+    </label>
+    <label>
+      Hints:
+      <button class="toggle-btn active" id="hints-toggle">On</button>
+    </label>
+    <label id="chord-types-label" style="display:none;">
+      Chords:
+      <select id="chord-types-select">
+        <option value="basic">Major & Minor</option>
+        <option value="intermediate">+ Dim & Aug</option>
+        <option value="advanced">+ 7th Chords</option>
+      </select>
+    </label>
+    <label id="progression-label" style="display:none;">
+      Song:
+      <select id="progression-select"></select>
+    </label>
+  </div>
+
+  <div id="acronyms-panel" class="acronyms-panel">
+    <div id="acronyms-content"></div>
+  </div>
+
+  <div class="timer-bar">
+    <div class="score" id="score">0 / 0</div>
+    <span class="response-time" id="response-time"></span>
+    <span class="streak" id="streak"></span>
+    <button class="challenge-btn" id="challenge-btn">60s Challenge</button>
+    <span class="countdown" id="countdown"></span>
+  </div>
+
+  <div class="prog-progress" id="prog-progress" style="display:none;"></div>
+
+  <div class="staff-container" id="staff-container"></div>
+
+  <div class="prompt" id="prompt" style="display:none;"></div>
+
+  <div class="piano-container">
+    <div class="house-labels" id="house-labels"></div>
+    <div class="piano" id="piano"></div>
+  </div>
+
+  <div class="note-buttons" id="note-buttons" style="display:none;"></div>
+
+  <div class="feedback" id="feedback"></div>
+
+  <script>
+    // --- Music Data ---
+    const NOTE_NAMES = ['C','D','E','F','G','A','B'];
+    const CHROMATIC = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const FLAT_MAP = {'C#':'Db','D#':'Eb','F#':'Gb','G#':'Ab','A#':'Bb'};
+    const ENHARMONIC = {'Db':'C#','Eb':'D#','Gb':'F#','Ab':'G#','Bb':'A#'};
+
+    const DIATONIC = ['C','D','E','F','G','A','B'];
+
+    function noteToStaffPos(note) {
+      const idx = DIATONIC.indexOf(note.name);
+      return idx + (note.octave - 4) * 7;
+    }
+
+    function staffPosToNote(pos) {
+      let octave = 4 + Math.floor(pos / 7);
+      let idx = ((pos % 7) + 7) % 7;
+      return { name: DIATONIC[idx], octave: octave, accidental: '' };
+    }
+
+    const RANGES = {
+      treble: {
+        close: { min: 2, max: 10 },
+        extended: { min: -2, max: 13 }
+      },
+      bass: {
+        close: { min: -12, max: -5 },
+        extended: { min: -15, max: -2 }
+      }
+    };
+
+    // --- Acronym Data ---
+    const ACRONYMS = {
+      treble: {
+        lines: { phrase: 'Every Good Boy Does Fine', notes: 'E G B D F' },
+        spaces: { phrase: 'F A C E', notes: 'F A C E' }
+      },
+      bass: {
+        lines: { phrase: 'Great Big Dogs Fight Animals', notes: 'G B D F A' },
+        spaces: { phrase: 'All Cows Eat Grass', notes: 'A C E G' }
+      }
+    };
+
+    // Doghouse / Grandma's House mnemonics
+    const KEY_MNEMONICS = {
+      'C': 'Cat',
+      'D': 'Dog',
+      'E': 'Elephant',
+      'F': 'Front\ndoor',
+      'G': 'Grandma',
+      'A': 'Apple\npie',
+      'B': 'Back\ndoor',
+    };
+
+    // --- Chord Data ---
+    // Intervals in semitones from root
+    const CHORD_TYPES = {
+      major:  { symbol: '',    intervals: [0, 4, 7],     tier: 'basic' },
+      minor:  { symbol: 'm',   intervals: [0, 3, 7],     tier: 'basic' },
+      dim:    { symbol: 'dim', intervals: [0, 3, 6],     tier: 'intermediate' },
+      aug:    { symbol: 'aug', intervals: [0, 4, 8],     tier: 'intermediate' },
+      maj7:   { symbol: 'maj7',intervals: [0, 4, 7, 11], tier: 'advanced' },
+      min7:   { symbol: 'm7',  intervals: [0, 3, 7, 10], tier: 'advanced' },
+      dom7:   { symbol: '7',   intervals: [0, 4, 7, 10], tier: 'advanced' },
+      dim7:   { symbol: 'dim7',intervals: [0, 3, 6, 9],  tier: 'advanced' },
+    };
+
+    const TIER_INCLUDE = {
+      basic: ['basic'],
+      intermediate: ['basic', 'intermediate'],
+      advanced: ['basic', 'intermediate', 'advanced'],
+    };
+
+    // Chromatic note to semitone offset from C
+    const NOTE_TO_SEMI = { 'C':0,'C#':1,'D':2,'D#':3,'E':4,'F':5,'F#':6,'G':7,'G#':8,'A':9,'A#':10,'B':11 };
+    const SEMI_TO_NOTE = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+    function getChordNotes(rootName, chordType) {
+      const rootSemi = NOTE_TO_SEMI[rootName];
+      return CHORD_TYPES[chordType].intervals.map(i => SEMI_TO_NOTE[(rootSemi + i) % 12]);
+    }
+
+    function chordDisplayName(rootName, chordType) {
+      return rootName.replace('#', '\u266F') + CHORD_TYPES[chordType].symbol;
+    }
+
+    function generateChord() {
+      const tiers = TIER_INCLUDE[state.chordTier];
+      const availableTypes = Object.entries(CHORD_TYPES).filter(([k, v]) => tiers.includes(v.tier));
+      const roots = NOTE_NAMES; // Use natural roots for simplicity
+      let chord;
+      do {
+        const root = roots[Math.floor(Math.random() * roots.length)];
+        const [type] = availableTypes[Math.floor(Math.random() * availableTypes.length)];
+        chord = { root, type };
+      } while (state.lastChord && chord.root === state.lastChord.root && chord.type === state.lastChord.type);
+      state.lastChord = chord;
+      return chord;
+    }
+
+    // Convert chord notes to staff positions (treble clef, close voicing from middle C area)
+    function chordToStaffNotes(rootName, chordType) {
+      const notes = getChordNotes(rootName, chordType);
+      const rootSemi = NOTE_TO_SEMI[rootName];
+      // Place root around C4 (pos 0) area
+      const baseOctave = 4;
+      const result = [];
+      let prevSemi = -1;
+      for (const noteName of notes) {
+        const semi = NOTE_TO_SEMI[noteName];
+        let octave = baseOctave;
+        let absSemi = octave * 12 + semi;
+        // Ensure ascending
+        if (prevSemi >= 0 && absSemi <= prevSemi) {
+          octave++;
+          absSemi = octave * 12 + semi;
+        }
+        prevSemi = absSemi;
+        // Find diatonic name and accidental
+        const diatonicIdx = DIATONIC.indexOf(noteName);
+        if (diatonicIdx >= 0) {
+          result.push({ name: noteName, octave, accidental: '', staffPos: noteToStaffPos({ name: noteName, octave }) });
+        } else {
+          // Sharp note: use the natural below + sharp
+          const naturalBelow = SEMI_TO_NOTE[(NOTE_TO_SEMI[noteName] - 1 + 12) % 12];
+          if (DIATONIC.includes(naturalBelow)) {
+            result.push({ name: naturalBelow, octave, accidental: '#', staffPos: noteToStaffPos({ name: naturalBelow, octave }) });
+          }
+        }
+      }
+      return result;
+    }
+
+    // --- Chord Progressions ---
+    const PROGRESSIONS = [
+      { name: 'I-IV-V-I (C)', chords: [{root:'C',type:'major'},{root:'F',type:'major'},{root:'G',type:'major'},{root:'C',type:'major'}] },
+      { name: 'I-V-vi-IV (C) "Let It Be"', chords: [{root:'C',type:'major'},{root:'G',type:'major'},{root:'A',type:'minor'},{root:'F',type:'major'}] },
+      { name: 'I-V-vi-IV (G) "With or Without You"', chords: [{root:'G',type:'major'},{root:'D',type:'major'},{root:'E',type:'minor'},{root:'C',type:'major'}] },
+      { name: 'ii-V-I (C) Jazz', chords: [{root:'D',type:'minor'},{root:'G',type:'major'},{root:'C',type:'major'}] },
+      { name: 'I-vi-IV-V (C) "Stand By Me"', chords: [{root:'C',type:'major'},{root:'A',type:'minor'},{root:'F',type:'major'},{root:'G',type:'major'}] },
+      { name: 'i-VI-III-VII (Am) "All Along the Watchtower"', chords: [{root:'A',type:'minor'},{root:'F',type:'major'},{root:'C',type:'major'},{root:'G',type:'major'}] },
+      { name: 'I-IV-vi-V (G) "Someone Like You"', chords: [{root:'G',type:'major'},{root:'C',type:'major'},{root:'E',type:'minor'},{root:'D',type:'major'}] },
+      { name: 'vi-IV-I-V (G) "Numb"', chords: [{root:'E',type:'minor'},{root:'C',type:'major'},{root:'G',type:'major'},{root:'D',type:'major'}] },
+      { name: 'I-V-IV (A) "Sweet Home Alabama"', chords: [{root:'A',type:'major'},{root:'E',type:'major'},{root:'D',type:'major'}] },
+      { name: 'I-bVII-IV (C) "Hey Jude"', chords: [{root:'C',type:'major'},{root:'B',type:'major'},{root:'F',type:'major'},{root:'C',type:'major'}] },
+      { name: '12 Bar Blues (C)', chords: [{root:'C',type:'major'},{root:'C',type:'major'},{root:'C',type:'major'},{root:'C',type:'major'},{root:'F',type:'major'},{root:'F',type:'major'},{root:'C',type:'major'},{root:'C',type:'major'},{root:'G',type:'major'},{root:'F',type:'major'},{root:'C',type:'major'},{root:'G',type:'major'}] },
+      { name: 'Canon in D', chords: [{root:'D',type:'major'},{root:'A',type:'major'},{root:'B',type:'minor'},{root:'F',type:'minor'},{root:'G',type:'major'},{root:'D',type:'major'},{root:'G',type:'major'},{root:'A',type:'major'}] },
+    ];
+
+    // --- State ---
+    let state = {
+      mode: 'staff-reading',
+      clef: 'treble',
+      accidentals: false,
+      range: 'close',
+      hints: true,
+      currentNote: null,
+      // For keyboard modes
+      currentKeyNote: null, // note name like 'D' or 'F#'
+      highlightedKeyEl: null,
+      correct: 0,
+      total: 0,
+      lastPos: null,
+      lastKeyNote: null,
+      lastChord: null,
+      currentChord: null,
+      chordTier: 'basic',
+      // For build-chord: track which notes user has clicked
+      chordClickedNotes: [],
+      chordExpectedNotes: [],
+      // Progression mode
+      currentProgression: null,
+      progIndex: 0,
+      progResults: [], // 'correct' | 'wrong' per chord
+      waitingForNext: false,
+      // Timer / challenge
+      challengeActive: false,
+      challengeTimer: null,
+      challengeTimeLeft: 60,
+      noteStartTime: 0,
+      responseTimes: [],
+      streak: 0,
+      bestStreak: 0,
+    };
+
+    // --- Settings ---
+    const modeSelect = document.getElementById('mode-select');
+    const clefSelect = document.getElementById('clef-select');
+    const accToggle = document.getElementById('acc-toggle');
+    const rangeSelect = document.getElementById('range-select');
+    const hintsToggle = document.getElementById('hints-toggle');
+    const promptEl = document.getElementById('prompt');
+    const staffContainer = document.getElementById('staff-container');
+
+    const chordTypesSelect = document.getElementById('chord-types-select');
+    chordTypesSelect.addEventListener('change', () => { state.chordTier = chordTypesSelect.value; newRound(); });
+
+    const progressionSelect = document.getElementById('progression-select');
+    // Populate progression dropdown
+    PROGRESSIONS.forEach((p, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = p.name;
+      progressionSelect.appendChild(opt);
+    });
+    progressionSelect.addEventListener('change', () => { newRound(); });
+
+    modeSelect.addEventListener('change', () => {
+      state.mode = modeSelect.value;
+      updateModeUI();
+      clearFeedback();
+      newRound();
+    });
+
+    clefSelect.addEventListener('change', () => { state.clef = clefSelect.value; renderAcronyms(); newRound(); });
+    rangeSelect.addEventListener('change', () => { state.range = rangeSelect.value; newRound(); });
+    accToggle.addEventListener('click', () => {
+      state.accidentals = !state.accidentals;
+      accToggle.textContent = state.accidentals ? 'On' : 'Off';
+      accToggle.classList.toggle('active', state.accidentals);
+      if (state.mode === 'name-the-key') renderNoteButtons();
+      renderAcronyms();
+      newRound();
+    });
+    hintsToggle.addEventListener('click', () => {
+      state.hints = !state.hints;
+      hintsToggle.textContent = state.hints ? 'On' : 'Off';
+      hintsToggle.classList.toggle('active', state.hints);
+      renderAcronyms();
+      updateKeyLabels();
+      updateHouseLabels();
+      if (state.mode === 'staff-reading') renderStaff();
+      if (state.mode === 'name-chord' && state.currentChord) renderChordStaff(state.currentChord);
+    });
+
+    function updateModeUI() {
+      const isStaff = state.mode === 'staff-reading';
+      const isNameKey = state.mode === 'name-the-key';
+      const isFindKey = state.mode === 'find-the-key';
+      const isBuildChord = state.mode === 'build-chord';
+      const isNameChord = state.mode === 'name-chord';
+      const isProgression = state.mode === 'chord-progression';
+      const isChordMode = isBuildChord || isNameChord;
+
+      // Show/hide staff vs prompt
+      staffContainer.style.display = (isStaff || isNameChord || isProgression) ? '' : 'none';
+      promptEl.style.display = (isFindKey || isNameKey || isBuildChord) ? '' : 'none';
+
+      // Show/hide staff-specific settings
+      document.getElementById('clef-label').style.display = isStaff ? '' : 'none';
+      document.getElementById('range-label').style.display = isStaff ? '' : 'none';
+      document.getElementById('acc-label').style.display = (isChordMode || isProgression) ? 'none' : '';
+
+      // Show chord types setting
+      document.getElementById('chord-types-label').style.display = isChordMode ? '' : 'none';
+
+      // Show progression selector
+      document.getElementById('progression-label').style.display = isProgression ? '' : 'none';
+
+      // Show progress dots
+      document.getElementById('prog-progress').style.display = isProgression ? '' : 'none';
+
+      // Show note buttons
+      const showButtons = isNameKey || isNameChord || isProgression;
+      document.getElementById('note-buttons').style.display = showButtons ? '' : 'none';
+      if (isNameKey) renderNoteButtons();
+      if (isNameChord || isProgression) renderChordButtons();
+
+      renderAcronyms();
+      updateHouseLabels();
+    }
+
+    function renderNoteButtons() {
+      const container = document.getElementById('note-buttons');
+      container.innerHTML = '';
+
+      const notes = state.accidentals
+        ? ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']
+        : ['C','D','E','F','G','A','B'];
+
+      for (const n of notes) {
+        const btn = document.createElement('button');
+        btn.className = 'note-btn';
+        btn.textContent = n.replace('#', '\u266F');
+        btn.addEventListener('click', () => handleAnswer(n, btn));
+        container.appendChild(btn);
+      }
+    }
+
+    function renderChordButtons() {
+      const container = document.getElementById('note-buttons');
+      container.innerHTML = '';
+      const tiers = TIER_INCLUDE[state.chordTier];
+      const types = Object.entries(CHORD_TYPES).filter(([k, v]) => tiers.includes(v.tier));
+      // Create a button for each root + type combo would be too many
+      // Instead: show chord name buttons for all possible answers
+      // Generate a pool of plausible chord names
+      const roots = NOTE_NAMES;
+      for (const root of roots) {
+        for (const [type, info] of types) {
+          const name = chordDisplayName(root, type);
+          const btn = document.createElement('button');
+          btn.className = 'note-btn';
+          btn.style.fontSize = '0.85rem';
+          btn.style.padding = '0.35rem 0.6rem';
+          btn.textContent = name;
+          btn.addEventListener('click', () => handleAnswer(root + '|' + type, btn));
+          container.appendChild(btn);
+        }
+      }
+    }
+
+    function updateKeyLabels() {
+      document.querySelectorAll('.key-label').forEach(label => {
+        label.style.display = state.hints ? '' : 'none';
+      });
+      document.querySelectorAll('.key-mnemonic').forEach(label => {
+        label.style.display = state.hints ? '' : 'none';
+      });
+    }
+
+    function updateHouseLabels() {
+      const container = document.getElementById('house-labels');
+      if (!state.hints || state.mode === 'staff-reading') {
+        container.innerHTML = '';
+        container.style.height = '0';
+        return;
+      }
+      container.style.height = '28px';
+
+      const whiteW = window.innerWidth < 500 ? 28 : 36;
+      // Each octave: 7 white keys. We have 2 octaves + 1 final C = 15 white keys
+      // Doghouse (2 black keys) spans C-D-E (white keys 0,1,2 in octave)
+      // Grandma's house (3 black keys) spans F-G-A-B (white keys 3,4,5,6 in octave)
+      let html = '';
+      for (let oct = 0; oct < 2; oct++) {
+        const base = oct * 7;
+        // Doghouse: keys 0-2 (C,D,E)
+        const dhLeft = base * whiteW + 2;
+        const dhWidth = 3 * whiteW - 4;
+        html += `<div class="house-bracket" style="left:${dhLeft}px;width:${dhWidth}px;top:12px;height:14px;"></div>`;
+        html += `<div class="house-label" style="left:${dhLeft}px;width:${dhWidth}px;top:0;">Doghouse</div>`;
+
+        // Grandma's house: keys 3-6 (F,G,A,B)
+        const ghLeft = (base + 3) * whiteW + 2;
+        const ghWidth = 4 * whiteW - 4;
+        html += `<div class="house-bracket" style="left:${ghLeft}px;width:${ghWidth}px;top:12px;height:14px;"></div>`;
+        html += `<div class="house-label" style="left:${ghLeft}px;width:${ghWidth}px;top:0;">Grandma's</div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function renderAcronyms() {
+      const panel = document.getElementById('acronyms-panel');
+      const content = document.getElementById('acronyms-content');
+      if (!state.hints) {
+        panel.style.display = 'none';
+        return;
+      }
+      panel.style.display = 'block';
+
+      const isStaff = state.mode === 'staff-reading';
+      let html = '';
+
+      if (isStaff) {
+        const clefs = state.clef === 'grand' ? ['treble', 'bass'] : [state.clef];
+        for (const c of clefs) {
+          const a = ACRONYMS[c];
+          const clefName = c.charAt(0).toUpperCase() + c.slice(1);
+          html += `<div class="clef-section">`;
+          html += `<h3>${clefName} Clef</h3>`;
+          html += `<span class="label">Lines:</span> <span class="letters">${a.lines.notes}</span> — ${a.lines.phrase}<br>`;
+          html += `<span class="label">Spaces:</span> <span class="letters">${a.spaces.notes}</span> — ${a.spaces.phrase}`;
+          if (state.accidentals) {
+            html += `<br><span class="label">Sharp &#9839;:</span> move up one key &nbsp; <span class="label">Flat &#9837;:</span> move down one key`;
+          }
+          html += `</div>`;
+        }
+      } else if (state.mode === 'build-chord' || state.mode === 'name-chord') {
+        // Chord modes
+        html += `<div class="clef-section">`;
+        html += `<h3>Chord Formulas (semitones from root)</h3>`;
+        html += `<span class="label">Major:</span> root + 4 + 3 &nbsp;(e.g., C-E-G)<br>`;
+        html += `<span class="label">Minor:</span> root + 3 + 4 &nbsp;(e.g., C-E&#9837;-G)`;
+        const tiers = TIER_INCLUDE[state.chordTier];
+        if (tiers.includes('intermediate')) {
+          html += `<br><span class="label">Dim:</span> root + 3 + 3 &nbsp;(e.g., C-E&#9837;-G&#9837;)`;
+          html += `<br><span class="label">Aug:</span> root + 4 + 4 &nbsp;(e.g., C-E-G&#9839;)`;
+        }
+        if (tiers.includes('advanced')) {
+          html += `<br><span class="label">Maj7:</span> root + 4 + 3 + 4`;
+          html += `<br><span class="label">m7:</span> root + 3 + 4 + 3`;
+          html += `<br><span class="label">7 (dom):</span> root + 4 + 3 + 3`;
+          html += `<br><span class="label">dim7:</span> root + 3 + 3 + 3`;
+        }
+        html += `</div>`;
+        if (state.mode === 'build-chord') {
+          html += `<div class="clef-section"><span style="color:#888;">Click all the notes in the chord, then they'll be checked.</span></div>`;
+        }
+      } else {
+        // Keyboard modes: doghouse/grandma's house
+        html += `<div class="clef-section">`;
+        html += `<h3>Doghouse (2 black keys)</h3>`;
+        html += `<span class="letters">C D E</span> — <b>C</b>at, <b>D</b>og, <b>E</b>lephant<br>`;
+        html += `<span style="color:#888;">Dog lives between the 2 black keys</span>`;
+        html += `</div>`;
+        html += `<div class="clef-section">`;
+        html += `<h3>Grandma's House (3 black keys)</h3>`;
+        html += `<span class="letters">F G A B</span> — <b>F</b>ront door, <b>G</b>randma, <b>A</b>pple pie, <b>B</b>ack door`;
+        html += `</div>`;
+        if (state.accidentals) {
+          html += `<div class="clef-section">`;
+          html += `<span class="label">Sharp &#9839;:</span> go up one key (sharpest kids rise to the top)<br>`;
+          html += `<span class="label">Flat &#9837;:</span> go down one key (a flat basketball goes down)`;
+          html += `</div>`;
+        }
+      }
+
+      content.innerHTML = html;
+    }
+
+    // --- Generate random note (for staff reading) ---
+    function generateNote() {
+      const clefs = state.clef === 'grand' ? ['treble', 'bass'] : [state.clef];
+      const clef = clefs[Math.floor(Math.random() * clefs.length)];
+      const r = RANGES[clef][state.range];
+
+      let pos;
+      do {
+        pos = r.min + Math.floor(Math.random() * (r.max - r.min + 1));
+      } while (pos === state.lastPos);
+
+      state.lastPos = pos;
+      const note = staffPosToNote(pos);
+      note.clef = clef;
+      note.staffPos = pos;
+
+      if (state.accidentals && Math.random() < 0.35) {
+        note.accidental = Math.random() < 0.5 ? '#' : 'b';
+      }
+
+      return note;
+    }
+
+    // --- Generate random key note (for keyboard modes) ---
+    function generateKeyNote() {
+      const pool = state.accidentals ? CHROMATIC : NOTE_NAMES;
+      let note;
+      do {
+        note = pool[Math.floor(Math.random() * pool.length)];
+      } while (note === state.lastKeyNote);
+      state.lastKeyNote = note;
+      return note;
+    }
+
+    function noteDisplayName(note) {
+      if (note.accidental === '#') return note.name + '#';
+      if (note.accidental === 'b') return note.name + 'b';
+      return note.name;
+    }
+
+    function noteMatchesAnswer(note, answer) {
+      // For staff-reading mode (note object)
+      if (typeof note === 'object') {
+        const nd = noteDisplayName(note);
+        if (nd === answer) return true;
+        if (FLAT_MAP[nd] === answer) return true;
+        if (ENHARMONIC[nd] === answer) return true;
+        return false;
+      }
+      // For keyboard modes (string comparison)
+      if (note === answer) return true;
+      if (FLAT_MAP[note] === answer) return true;
+      if (ENHARMONIC[note] === answer) return true;
+      return false;
+    }
+
+    // --- Render Staff (SVG) ---
+    function renderStaff() {
+      const container = document.getElementById('staff-container');
+      const note = state.currentNote;
+      const isGrand = state.clef === 'grand';
+      const svgW = state.hints ? 340 : 280;
+      const lineSpacing = 10;
+
+      const trebleLines = [2, 4, 6, 8, 10];
+      const bassLines = [-10, -8, -6, -4, -2];
+
+      let staves = [];
+      if (isGrand) {
+        staves = [
+          { clef: 'treble', lines: trebleLines, yOffset: 0 },
+          { clef: 'bass', lines: bassLines, yOffset: 160 }
+        ];
+      } else if (state.clef === 'treble') {
+        staves = [{ clef: 'treble', lines: trebleLines, yOffset: 0 }];
+      } else {
+        staves = [{ clef: 'bass', lines: bassLines, yOffset: 0 }];
+      }
+
+      const staffH = isGrand ? 320 : 160;
+      const topPad = 50;
+      const svgH = staffH + topPad + 30;
+
+      let svg = `<svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">`;
+
+      for (const s of staves) {
+        const staffTop = topPad + s.yOffset;
+
+        for (let i = 0; i < 5; i++) {
+          const y = staffTop + i * lineSpacing;
+          svg += `<line x1="40" y1="${y}" x2="${svgW - 20}" y2="${y}" stroke="#333" stroke-width="1"/>`;
+        }
+
+        if (s.clef === 'treble') {
+          svg += `<text x="45" y="${staffTop + 35}" font-size="52" font-family="serif" fill="#333">&#119070;</text>`;
+        } else {
+          svg += `<text x="45" y="${staffTop + 30}" font-size="38" font-family="serif" fill="#333">&#119074;</text>`;
+        }
+
+        if (state.hints) {
+          const acronym = ACRONYMS[s.clef];
+          const lineWords = acronym.lines.phrase.split(' ');
+          const spaceWords = acronym.spaces.notes.split(' ');
+          for (let i = 0; i < 5; i++) {
+            const y = staffTop + i * lineSpacing;
+            const word = lineWords[4 - i];
+            svg += `<text x="${svgW - 16}" y="${y + 4}" font-size="9" font-family="sans-serif" fill="#999" text-anchor="start">${word}</text>`;
+          }
+          for (let i = 0; i < 4; i++) {
+            const y = staffTop + (3 - i) * lineSpacing + lineSpacing / 2;
+            const word = spaceWords[i];
+            svg += `<text x="${svgW - 16}" y="${y + 3}" font-size="9" font-family="sans-serif" fill="#bbb" text-anchor="start">${word}</text>`;
+          }
+        }
+      }
+
+      if (isGrand) {
+        svg += `<line x1="40" y1="${topPad}" x2="40" y2="${topPad + 160 + 40}" stroke="#333" stroke-width="2"/>`;
+        svg += `<text x="28" y="${topPad + 120}" font-size="140" font-family="serif" fill="#333" transform="scale(0.3, 1) translate(30, 0)">{</text>`;
+      }
+
+      if (note) {
+        const noteStaff = staves.find(s => s.clef === note.clef) || staves[0];
+        const staffTop = topPad + noteStaff.yOffset;
+        const bottomLinePos = noteStaff.lines[0];
+        const bottomLineY = staffTop + 4 * lineSpacing;
+        const noteY = bottomLineY - (note.staffPos - bottomLinePos) * (lineSpacing / 2);
+        const noteX = 170;
+
+        const topLineY = staffTop;
+        const botLineY = staffTop + 4 * lineSpacing;
+
+        if (noteY > botLineY + lineSpacing / 2) {
+          for (let ly = botLineY + lineSpacing; ly <= noteY + 1; ly += lineSpacing) {
+            svg += `<line x1="${noteX - 16}" y1="${ly}" x2="${noteX + 16}" y2="${ly}" stroke="#333" stroke-width="1"/>`;
+          }
+        }
+        if (noteY < topLineY - lineSpacing / 2) {
+          for (let ly = topLineY - lineSpacing; ly >= noteY - 1; ly -= lineSpacing) {
+            svg += `<line x1="${noteX - 16}" y1="${ly}" x2="${noteX + 16}" y2="${ly}" stroke="#333" stroke-width="1"/>`;
+          }
+        }
+        if (isGrand && note.staffPos === 0) {
+          svg += `<line x1="${noteX - 16}" y1="${noteY}" x2="${noteX + 16}" y2="${noteY}" stroke="#333" stroke-width="1"/>`;
+        }
+
+        if (note.accidental === '#') {
+          svg += `<text x="${noteX - 22}" y="${noteY + 5}" font-size="16" font-family="serif" fill="#333">&#9839;</text>`;
+        } else if (note.accidental === 'b') {
+          svg += `<text x="${noteX - 20}" y="${noteY + 5}" font-size="16" font-family="serif" fill="#333">&#9837;</text>`;
+        }
+
+        svg += `<ellipse cx="${noteX}" cy="${noteY}" rx="8" ry="6" fill="#333" transform="rotate(-10, ${noteX}, ${noteY})"/>`;
+
+        const stemDir = noteY > (staffTop + 2 * lineSpacing) ? -1 : 1;
+        const stemX = stemDir === -1 ? noteX + 7 : noteX - 7;
+        svg += `<line x1="${stemX}" y1="${noteY}" x2="${stemX}" y2="${noteY + stemDir * 35}" stroke="#333" stroke-width="1.5"/>`;
+      }
+
+      svg += '</svg>';
+      container.innerHTML = svg;
+    }
+
+    // --- Render Piano ---
+    function buildPiano() {
+      const piano = document.getElementById('piano');
+      piano.innerHTML = '';
+
+      const octaves = [3, 4];
+      const whiteNotes = ['C','D','E','F','G','A','B'];
+      const blackKeyAfter = ['C','D','F','G','A'];
+
+      let whiteIndex = 0;
+      const whiteW = window.innerWidth < 500 ? 28 : 36;
+      const blackW = window.innerWidth < 500 ? 20 : 24;
+
+      for (const oct of octaves) {
+        for (const wn of whiteNotes) {
+          const key = document.createElement('div');
+          key.className = 'white-key';
+          key.dataset.note = wn;
+          key.dataset.octave = oct;
+          key.style.width = whiteW + 'px';
+
+          if (KEY_MNEMONICS[wn]) {
+            const mnem = document.createElement('span');
+            mnem.className = 'key-mnemonic';
+            mnem.innerHTML = KEY_MNEMONICS[wn].replace('\n', '<br>');
+            key.appendChild(mnem);
+          }
+
+          const wLabel = document.createElement('span');
+          wLabel.className = 'key-label';
+          wLabel.textContent = wn;
+          key.appendChild(wLabel);
+          key.addEventListener('click', () => handlePianoClick(wn, key));
+          piano.appendChild(key);
+
+          if (blackKeyAfter.includes(wn)) {
+            const bk = document.createElement('div');
+            bk.className = 'black-key';
+            bk.dataset.note = wn + '#';
+            bk.dataset.octave = oct;
+            const leftPos = (whiteIndex + 1) * whiteW - blackW / 2 - 1;
+            bk.style.left = leftPos + 'px';
+            bk.style.width = blackW + 'px';
+            const bLabel = document.createElement('span');
+            bLabel.className = 'key-label';
+            bLabel.textContent = wn + '\u266F';
+            bk.appendChild(bLabel);
+            bk.addEventListener('click', (e) => {
+              e.stopPropagation();
+              handlePianoClick(wn + '#', bk);
+            });
+            piano.appendChild(bk);
+          }
+          whiteIndex++;
+        }
+      }
+
+      // Final C5
+      const key = document.createElement('div');
+      key.className = 'white-key';
+      key.dataset.note = 'C';
+      key.dataset.octave = 5;
+      key.style.width = whiteW + 'px';
+      const mnem = document.createElement('span');
+      mnem.className = 'key-mnemonic';
+      mnem.textContent = 'Cat';
+      key.appendChild(mnem);
+      const cLabel = document.createElement('span');
+      cLabel.className = 'key-label';
+      cLabel.textContent = 'C';
+      key.appendChild(cLabel);
+      key.addEventListener('click', () => handlePianoClick('C', key));
+      piano.appendChild(key);
+      whiteIndex++;
+
+      // C#5 black key to complete the keyboard visually
+      const bkFinal = document.createElement('div');
+      bkFinal.className = 'black-key';
+      bkFinal.dataset.note = 'C#';
+      bkFinal.dataset.octave = 5;
+      const finalLeftPos = whiteIndex * whiteW - blackW / 2 - 1;
+      bkFinal.style.left = finalLeftPos + 'px';
+      bkFinal.style.width = blackW + 'px';
+      const bkFinalLabel = document.createElement('span');
+      bkFinalLabel.className = 'key-label';
+      bkFinalLabel.textContent = 'C\u266F';
+      bkFinal.appendChild(bkFinalLabel);
+      bkFinal.addEventListener('click', (e) => {
+        e.stopPropagation();
+        handlePianoClick('C#', bkFinal);
+      });
+      piano.appendChild(bkFinal);
+
+      piano.style.width = (whiteIndex * whiteW + blackW / 2) + 'px';
+    }
+
+    // --- Click Handlers ---
+    function handlePianoClick(noteName, element) {
+      if (state.mode === 'staff-reading') {
+        handleAnswer(noteName, element);
+      } else if (state.mode === 'name-the-key') {
+        if (state.waitingForNext) {
+          clearFeedback();
+          newRound();
+        }
+      } else if (state.mode === 'find-the-key') {
+        handleAnswer(noteName, element);
+      } else if (state.mode === 'build-chord') {
+        handleChordClick(noteName, element);
+      } else if (state.mode === 'name-chord' || state.mode === 'chord-progression') {
+        if (state.waitingForNext) {
+          clearFeedback();
+          if (state._progAdvanceOnNext) {
+            state._progAdvanceOnNext = false;
+            advanceProgression();
+          } else {
+            newRound();
+          }
+        }
+      }
+    }
+
+    function handleChordClick(noteName, element) {
+      if (state.waitingForNext) {
+        clearFeedback();
+        newRound();
+        return;
+      }
+
+      // Toggle note selection
+      const idx = state.chordClickedNotes.indexOf(noteName);
+      if (idx >= 0) {
+        state.chordClickedNotes.splice(idx, 1);
+        element.classList.remove('highlighted');
+      } else {
+        state.chordClickedNotes.push(noteName);
+        element.classList.add('highlighted');
+      }
+
+      // Check when user has clicked enough notes
+      if (state.chordClickedNotes.length === state.chordExpectedNotes.length) {
+        const clicked = [...state.chordClickedNotes].sort();
+        const expected = [...state.chordExpectedNotes].sort();
+        const correct = clicked.length === expected.length && clicked.every((n, i) => n === expected[i]);
+
+        const responseMs = performance.now() - state.noteStartTime;
+        const chord = state.currentChord;
+        const display = chordDisplayName(chord.root, chord.type);
+
+        if (correct) {
+          state.correct++;
+          state.total++;
+          state.streak++;
+          if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+          state.responseTimes.push(responseMs);
+          updateResponseTime(responseMs);
+          updateStreak();
+          // Highlight all correct
+          document.querySelectorAll('.highlighted').forEach(el => {
+            el.classList.remove('highlighted');
+            el.classList.add('correct');
+          });
+          document.getElementById('feedback').textContent = `Correct! ${display}`;
+          document.getElementById('feedback').style.color = '#4caf50';
+          updateScore();
+          setTimeout(() => {
+            clearFeedback();
+            newRound();
+          }, state.challengeActive ? 300 : 600);
+        } else {
+          state.total++;
+          state.streak = 0;
+          updateStreak();
+          document.querySelectorAll('.highlighted').forEach(el => {
+            el.classList.remove('highlighted');
+            el.classList.add('wrong');
+          });
+          // Highlight correct keys
+          for (const n of state.chordExpectedNotes) {
+            document.querySelectorAll('.white-key, .black-key').forEach(key => {
+              if (key.dataset.note === n) key.classList.add('hint');
+            });
+          }
+          document.getElementById('feedback').textContent = `Wrong — ${display} is ${state.chordExpectedNotes.join('-')}. Tap to continue.`;
+          document.getElementById('feedback').style.color = '#d32f2f';
+          updateScore();
+          state.waitingForNext = true;
+        }
+        state.chordClickedNotes = [];
+      }
+    }
+
+    // --- Answer Handling ---
+    function handleAnswer(answer, element) {
+      if (state.waitingForNext) {
+        clearFeedback();
+        if (state._progAdvanceOnNext) {
+          state._progAdvanceOnNext = false;
+          advanceProgression();
+        } else {
+          newRound();
+        }
+        return;
+      }
+
+      let correct = false;
+      let correctDisplay = '';
+
+      if (state.mode === 'staff-reading') {
+        const note = state.currentNote;
+        correct = noteMatchesAnswer(note, answer);
+        correctDisplay = noteDisplayName(note).replace('#', '\u266F');
+      } else if (state.mode === 'name-the-key') {
+        correct = noteMatchesAnswer(state.currentKeyNote, answer);
+        correctDisplay = state.currentKeyNote.replace('#', '\u266F');
+      } else if (state.mode === 'find-the-key') {
+        correct = noteMatchesAnswer(state.currentKeyNote, answer);
+        correctDisplay = state.currentKeyNote.replace('#', '\u266F');
+      } else if (state.mode === 'name-chord') {
+        const chord = state.currentChord;
+        const [ansRoot, ansType] = answer.split('|');
+        correct = (ansRoot === chord.root && ansType === chord.type);
+        correctDisplay = chordDisplayName(chord.root, chord.type);
+      } else if (state.mode === 'chord-progression') {
+        const chord = state.currentProgression.chords[state.progIndex];
+        const [ansRoot, ansType] = answer.split('|');
+        correct = (ansRoot === chord.root && ansType === chord.type);
+        correctDisplay = chordDisplayName(chord.root, chord.type);
+      }
+
+      const responseMs = performance.now() - state.noteStartTime;
+
+      if (correct) {
+        state.correct++;
+        state.total++;
+        state.streak++;
+        if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+        state.responseTimes.push(responseMs);
+        if (element) element.classList.add('correct');
+        updateResponseTime(responseMs);
+        updateStreak();
+        document.getElementById('feedback').textContent = 'Correct!';
+        document.getElementById('feedback').style.color = '#4caf50';
+        updateScore();
+
+        if (state.mode === 'chord-progression') {
+          state.progResults.push('correct');
+          setTimeout(() => {
+            clearFeedback();
+            advanceProgression();
+          }, 400);
+        } else {
+          setTimeout(() => {
+            clearFeedback();
+            newRound();
+          }, state.challengeActive ? 200 : 400);
+        }
+      } else {
+        state.total++;
+        state.streak = 0;
+        updateStreak();
+        if (element) element.classList.add('wrong');
+        document.getElementById('feedback').textContent = `Wrong — it's ${correctDisplay}. Tap to continue.`;
+        document.getElementById('feedback').style.color = '#d32f2f';
+        updateScore();
+
+        if (state.mode === 'chord-progression') {
+          state.progResults.push('wrong');
+          // Highlight correct chord button
+          document.querySelectorAll('.note-btn').forEach(btn => {
+            if (btn.textContent === correctDisplay) btn.classList.add('hint');
+          });
+          state.waitingForNext = true;
+          // Override: on next tap, advance progression instead of newRound
+          state._progAdvanceOnNext = true;
+        } else {
+          // Highlight correct answer on piano
+          if (state.mode === 'staff-reading') {
+            highlightCorrect(state.currentNote);
+          } else if (state.mode === 'name-chord') {
+            document.querySelectorAll('.note-btn').forEach(btn => {
+              if (btn.textContent === correctDisplay) btn.classList.add('hint');
+            });
+          } else {
+            highlightCorrectKey(state.currentKeyNote);
+          }
+          state.waitingForNext = true;
+        }
+      }
+    }
+
+    function advanceProgression() {
+      state.progIndex++;
+      if (state.progIndex >= state.currentProgression.chords.length) {
+        // Progression complete!
+        const correctCount = state.progResults.filter(r => r === 'correct').length;
+        const total = state.progResults.length;
+        document.getElementById('feedback').textContent = `Progression complete! ${correctCount}/${total} correct.`;
+        document.getElementById('feedback').style.color = correctCount === total ? '#4caf50' : '#666';
+        renderProgDots();
+        // Auto-restart after a pause
+        setTimeout(() => {
+          clearFeedback();
+          newRound();
+        }, 2000);
+      } else {
+        state.noteStartTime = performance.now();
+        renderProgressionStaff(state.currentProgression, state.progIndex);
+        renderProgDots();
+      }
+    }
+
+    function highlightCorrect(note) {
+      document.querySelectorAll('.white-key, .black-key').forEach(key => {
+        if (noteMatchesAnswer(note, key.dataset.note)) {
+          key.classList.add('hint');
+        }
+      });
+    }
+
+    function highlightCorrectKey(noteName) {
+      document.querySelectorAll('.white-key, .black-key').forEach(key => {
+        if (noteMatchesAnswer(noteName, key.dataset.note)) {
+          key.classList.add('hint');
+        }
+      });
+      // Also highlight the correct note button if visible
+      document.querySelectorAll('.note-btn').forEach(btn => {
+        const btnNote = btn.textContent.replace('\u266F', '#');
+        if (noteMatchesAnswer(noteName, btnNote)) {
+          btn.classList.add('hint');
+        }
+      });
+    }
+
+    function clearFeedback() {
+      state.waitingForNext = false;
+      document.getElementById('feedback').textContent = '';
+      document.querySelectorAll('.correct, .wrong, .hint, .highlighted').forEach(el => {
+        el.classList.remove('correct', 'wrong', 'hint', 'highlighted');
+      });
+    }
+
+    function updateScore() {
+      document.getElementById('score').textContent = `${state.correct} / ${state.total}`;
+    }
+
+    // --- Challenge Mode ---
+    const challengeBtn = document.getElementById('challenge-btn');
+    const countdownEl = document.getElementById('countdown');
+
+    challengeBtn.addEventListener('click', () => {
+      if (state.challengeActive) {
+        endChallenge();
+      } else {
+        startChallenge();
+      }
+    });
+
+    function startChallenge() {
+      state.challengeActive = true;
+      state.challengeTimeLeft = 60;
+      state.correct = 0;
+      state.total = 0;
+      state.responseTimes = [];
+      state.streak = 0;
+      state.bestStreak = 0;
+      updateScore();
+      updateStreak();
+      challengeBtn.textContent = 'Stop';
+      challengeBtn.classList.add('stop');
+      countdownEl.textContent = '60';
+      countdownEl.classList.remove('urgent');
+
+      state.challengeTimer = setInterval(() => {
+        state.challengeTimeLeft--;
+        countdownEl.textContent = state.challengeTimeLeft;
+        if (state.challengeTimeLeft <= 10) {
+          countdownEl.classList.add('urgent');
+        }
+        if (state.challengeTimeLeft <= 0) {
+          endChallenge();
+        }
+      }, 1000);
+
+      clearFeedback();
+      newRound();
+    }
+
+    function endChallenge() {
+      state.challengeActive = false;
+      clearInterval(state.challengeTimer);
+      challengeBtn.textContent = '60s Challenge';
+      challengeBtn.classList.remove('stop');
+      countdownEl.textContent = '';
+      countdownEl.classList.remove('urgent');
+      showResults();
+    }
+
+    function showResults() {
+      const avgTime = state.responseTimes.length > 0
+        ? (state.responseTimes.reduce((a, b) => a + b, 0) / state.responseTimes.length / 1000).toFixed(2)
+        : '\u2014';
+      const fastestTime = state.responseTimes.length > 0
+        ? (Math.min(...state.responseTimes) / 1000).toFixed(2)
+        : '\u2014';
+      const accuracy = state.total > 0
+        ? Math.round(state.correct / state.total * 100)
+        : 0;
+
+      const overlay = document.createElement('div');
+      overlay.className = 'results-overlay';
+      overlay.innerHTML = `
+        <div class="results-card">
+          <h2>Challenge Complete!</h2>
+          <div class="stat"><span class="stat-label">Correct</span><span class="stat-value">${state.correct} / ${state.total}</span></div>
+          <div class="stat"><span class="stat-label">Accuracy</span><span class="stat-value">${accuracy}%</span></div>
+          <div class="stat"><span class="stat-label">Avg response</span><span class="stat-value">${avgTime}s</span></div>
+          <div class="stat"><span class="stat-label">Fastest</span><span class="stat-value">${fastestTime}s</span></div>
+          <div class="stat"><span class="stat-label">Best streak</span><span class="stat-value">${state.bestStreak}</span></div>
+          <button id="results-close">OK</button>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+      document.getElementById('results-close').addEventListener('click', () => {
+        overlay.remove();
+      });
+      overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) overlay.remove();
+      });
+    }
+
+    function updateStreak() {
+      const streakEl = document.getElementById('streak');
+      if (state.streak > 1) {
+        streakEl.textContent = `${state.streak} streak`;
+      } else {
+        streakEl.textContent = '';
+      }
+    }
+
+    function updateResponseTime(ms) {
+      const el = document.getElementById('response-time');
+      const secs = (ms / 1000).toFixed(2);
+      el.textContent = `${secs}s`;
+    }
+
+    // --- Render chord on staff ---
+    function renderChordStaff(chord) {
+      const container = document.getElementById('staff-container');
+      const staffNotes = chordToStaffNotes(chord.root, chord.type);
+      const svgW = 280;
+      const lineSpacing = 10;
+      const trebleLines = [2, 4, 6, 8, 10];
+      const topPad = 50;
+      const svgH = 210;
+
+      let svg = `<svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">`;
+
+      const staffTop = topPad;
+      for (let i = 0; i < 5; i++) {
+        const y = staffTop + i * lineSpacing;
+        svg += `<line x1="40" y1="${y}" x2="${svgW - 20}" y2="${y}" stroke="#333" stroke-width="1"/>`;
+      }
+      svg += `<text x="45" y="${staffTop + 35}" font-size="52" font-family="serif" fill="#333">&#119070;</text>`;
+
+      const noteX = 170;
+      const bottomLinePos = trebleLines[0];
+      const bottomLineY = staffTop + 4 * lineSpacing;
+
+      for (const n of staffNotes) {
+        const noteY = bottomLineY - (n.staffPos - bottomLinePos) * (lineSpacing / 2);
+
+        // Ledger lines
+        if (noteY > bottomLineY + lineSpacing / 2) {
+          for (let ly = bottomLineY + lineSpacing; ly <= noteY + 1; ly += lineSpacing) {
+            svg += `<line x1="${noteX - 16}" y1="${ly}" x2="${noteX + 16}" y2="${ly}" stroke="#333" stroke-width="1"/>`;
+          }
+        }
+        if (noteY < staffTop - lineSpacing / 2) {
+          for (let ly = staffTop - lineSpacing; ly >= noteY - 1; ly -= lineSpacing) {
+            svg += `<line x1="${noteX - 16}" y1="${ly}" x2="${noteX + 16}" y2="${ly}" stroke="#333" stroke-width="1"/>`;
+          }
+        }
+
+        if (n.accidental === '#') {
+          svg += `<text x="${noteX - 22}" y="${noteY + 5}" font-size="16" font-family="serif" fill="#333">&#9839;</text>`;
+        } else if (n.accidental === 'b') {
+          svg += `<text x="${noteX - 20}" y="${noteY + 5}" font-size="16" font-family="serif" fill="#333">&#9837;</text>`;
+        }
+
+        svg += `<ellipse cx="${noteX}" cy="${noteY}" rx="8" ry="6" fill="#333" transform="rotate(-10, ${noteX}, ${noteY})"/>`;
+      }
+
+      // Stem on the right side going up from top note
+      if (staffNotes.length > 0) {
+        const topNote = staffNotes[staffNotes.length - 1];
+        const botNote = staffNotes[0];
+        const topY = bottomLineY - (topNote.staffPos - bottomLinePos) * (lineSpacing / 2);
+        const botY = bottomLineY - (botNote.staffPos - bottomLinePos) * (lineSpacing / 2);
+        svg += `<line x1="${noteX + 7}" y1="${botY}" x2="${noteX + 7}" y2="${topY - 30}" stroke="#333" stroke-width="1.5"/>`;
+      }
+
+      svg += '</svg>';
+      container.innerHTML = svg;
+    }
+
+    // --- Render Progression Staff ---
+    function renderProgressionStaff(progression, highlightIdx) {
+      const container = document.getElementById('staff-container');
+      const chords = progression.chords;
+      const lineSpacing = 10;
+      const trebleLines = [2, 4, 6, 8, 10];
+      const topPad = 50;
+      const chordSpacing = 60;
+      const startX = 90;
+      const svgW = Math.max(startX + chords.length * chordSpacing + 40, 340);
+      const svgH = 180;
+
+      let svg = `<svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">`;
+
+      const staffTop = topPad;
+      for (let i = 0; i < 5; i++) {
+        const y = staffTop + i * lineSpacing;
+        svg += `<line x1="40" y1="${y}" x2="${svgW - 20}" y2="${y}" stroke="#333" stroke-width="1"/>`;
+      }
+      svg += `<text x="45" y="${staffTop + 35}" font-size="52" font-family="serif" fill="#333">&#119070;</text>`;
+
+      const bottomLinePos = trebleLines[0];
+      const bottomLineY = staffTop + 4 * lineSpacing;
+
+      for (let ci = 0; ci < chords.length; ci++) {
+        const chord = chords[ci];
+        const noteX = startX + ci * chordSpacing;
+        const staffNotes = chordToStaffNotes(chord.root, chord.type);
+
+        // Highlight box for current chord
+        if (ci === highlightIdx) {
+          svg += `<rect x="${noteX - 18}" y="${staffTop - 15}" width="36" height="${4 * lineSpacing + 30}" rx="4" fill="rgba(74,144,217,0.12)" stroke="#4a90d9" stroke-width="1.5"/>`;
+        }
+
+        for (const n of staffNotes) {
+          const noteY = bottomLineY - (n.staffPos - bottomLinePos) * (lineSpacing / 2);
+
+          // Ledger lines
+          if (noteY > bottomLineY + lineSpacing / 2) {
+            for (let ly = bottomLineY + lineSpacing; ly <= noteY + 1; ly += lineSpacing) {
+              svg += `<line x1="${noteX - 16}" y1="${ly}" x2="${noteX + 16}" y2="${ly}" stroke="#333" stroke-width="1"/>`;
+            }
+          }
+          if (noteY < staffTop - lineSpacing / 2) {
+            for (let ly = staffTop - lineSpacing; ly >= noteY - 1; ly -= lineSpacing) {
+              svg += `<line x1="${noteX - 16}" y1="${ly}" x2="${noteX + 16}" y2="${ly}" stroke="#333" stroke-width="1"/>`;
+            }
+          }
+
+          if (n.accidental === '#') {
+            svg += `<text x="${noteX - 22}" y="${noteY + 5}" font-size="14" font-family="serif" fill="#333">&#9839;</text>`;
+          } else if (n.accidental === 'b') {
+            svg += `<text x="${noteX - 20}" y="${noteY + 5}" font-size="14" font-family="serif" fill="#333">&#9837;</text>`;
+          }
+
+          svg += `<ellipse cx="${noteX}" cy="${noteY}" rx="7" ry="5.5" fill="#333" transform="rotate(-10, ${noteX}, ${noteY})"/>`;
+        }
+
+        // Stem
+        if (staffNotes.length > 0) {
+          const topNote = staffNotes[staffNotes.length - 1];
+          const botNote = staffNotes[0];
+          const topY = bottomLineY - (topNote.staffPos - bottomLinePos) * (lineSpacing / 2);
+          const botY = bottomLineY - (botNote.staffPos - bottomLinePos) * (lineSpacing / 2);
+          svg += `<line x1="${noteX + 6}" y1="${botY}" x2="${noteX + 6}" y2="${topY - 25}" stroke="#333" stroke-width="1.2"/>`;
+        }
+      }
+
+      svg += '</svg>';
+      container.innerHTML = svg;
+    }
+
+    function renderProgDots() {
+      const container = document.getElementById('prog-progress');
+      if (!state.currentProgression) { container.innerHTML = ''; return; }
+      const chords = state.currentProgression.chords;
+      let html = '';
+      for (let i = 0; i < chords.length; i++) {
+        let cls = 'prog-dot';
+        if (i < state.progIndex) {
+          cls += state.progResults[i] === 'correct' ? ' done' : ' wrong-dot';
+        } else if (i === state.progIndex) {
+          cls += ' current';
+        }
+        html += `<div class="${cls}"></div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    // --- New Round ---
+    function newRound() {
+      state.noteStartTime = performance.now();
+
+      if (state.mode === 'staff-reading') {
+        state.currentNote = generateNote();
+        renderStaff();
+      } else if (state.mode === 'name-the-key') {
+        state.currentKeyNote = generateKeyNote();
+        highlightRandomKey(state.currentKeyNote);
+        promptEl.innerHTML = `<span class="prompt-label">What note is this key?</span>`;
+      } else if (state.mode === 'find-the-key') {
+        state.currentKeyNote = generateKeyNote();
+        const display = state.currentKeyNote.replace('#', '\u266F');
+        promptEl.innerHTML = `<span class="prompt-label">Find:</span> ${display}`;
+      } else if (state.mode === 'build-chord') {
+        state.currentChord = generateChord();
+        state.chordClickedNotes = [];
+        state.chordExpectedNotes = getChordNotes(state.currentChord.root, state.currentChord.type);
+        const display = chordDisplayName(state.currentChord.root, state.currentChord.type);
+        promptEl.innerHTML = `<span class="prompt-label">Build:</span> ${display}`;
+      } else if (state.mode === 'name-chord') {
+        state.currentChord = generateChord();
+        renderChordStaff(state.currentChord);
+      } else if (state.mode === 'chord-progression') {
+        const idx = parseInt(progressionSelect.value) || 0;
+        state.currentProgression = PROGRESSIONS[idx];
+        state.progIndex = 0;
+        state.progResults = [];
+        renderProgressionStaff(state.currentProgression, 0);
+        renderProgDots();
+      }
+    }
+
+    function highlightRandomKey(noteName) {
+      // Clear previous highlight
+      document.querySelectorAll('.highlighted').forEach(el => el.classList.remove('highlighted'));
+
+      // Find all matching keys and pick a random one
+      const allKeys = document.querySelectorAll('.white-key, .black-key');
+      const matches = [];
+      allKeys.forEach(key => {
+        if (noteMatchesAnswer(noteName, key.dataset.note)) {
+          matches.push(key);
+        }
+      });
+      if (matches.length > 0) {
+        const picked = matches[Math.floor(Math.random() * matches.length)];
+        picked.classList.add('highlighted');
+      }
+    }
+
+    // --- Keyboard Input ---
+    //  w e   t y u       →  C# D#   F# G# A#
+    // a s d f g h j      →  C  D  E  F  G  A  B
+    const KEY_MAP = {
+      'a': 'C', 's': 'D', 'd': 'E', 'f': 'F', 'g': 'G', 'h': 'A', 'j': 'B',
+    };
+    const BLACK_KEY_MAP = {
+      'w': 'C#', 'e': 'D#', 't': 'F#', 'y': 'G#', 'u': 'A#',
+    };
+
+    document.addEventListener('keydown', (ev) => {
+      if (ev.repeat) return;
+      const key = ev.key.toLowerCase();
+
+      let noteName = null;
+      let isBlack = false;
+
+      if (BLACK_KEY_MAP[key]) {
+        noteName = BLACK_KEY_MAP[key];
+        isBlack = true;
+      } else if (KEY_MAP[key]) {
+        noteName = KEY_MAP[key];
+      }
+
+      if (noteName) {
+        ev.preventDefault();
+        const selector = isBlack ? '.black-key' : '.white-key';
+        const pianoKey = document.querySelector(`${selector}[data-note="${noteName}"]`);
+
+        if (state.mode === 'name-the-key') {
+          handleAnswer(noteName, pianoKey || document.createElement('div'));
+        } else {
+          handlePianoClick(noteName, pianoKey || document.createElement('div'));
+        }
+      }
+    });
+
+    // --- Init ---
+    buildPiano();
+    renderAcronyms();
+    updateModeUI();
+    updateKeyLabels();
+    updateHouseLabels();
+    newRound();
+  </script>
+</body>
+</html>
