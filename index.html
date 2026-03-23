@@ -1714,6 +1714,45 @@
       }
     });
 
+    // --- MIDI Input ---
+    const MIDI_NOTE_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+
+    function midiNoteToName(midiNumber) {
+      return MIDI_NOTE_NAMES[midiNumber % 12];
+    }
+
+    function initMIDI() {
+      if (!navigator.requestMIDIAccess) return;
+      navigator.requestMIDIAccess().then(access => {
+        function connectInputs() {
+          for (const input of access.inputs.values()) {
+            input.onmidimessage = handleMIDIMessage;
+          }
+        }
+        connectInputs();
+        access.onstatechange = connectInputs;
+      }).catch(() => {});
+    }
+
+    function handleMIDIMessage(msg) {
+      const [status, note, velocity] = msg.data;
+      // Note On: status 0x90-0x9F with velocity > 0
+      if ((status & 0xF0) === 0x90 && velocity > 0) {
+        const noteName = midiNoteToName(note);
+        const isBlack = noteName.includes('#');
+        const selector = isBlack ? '.black-key' : '.white-key';
+        const pianoKey = document.querySelector(`${selector}[data-note="${noteName}"]`);
+
+        if (state.mode === 'name-the-key') {
+          handleAnswer(noteName, pianoKey || document.createElement('div'));
+        } else {
+          handlePianoClick(noteName, pianoKey || document.createElement('div'));
+        }
+      }
+    }
+
+    initMIDI();
+
     // --- Init ---
     buildPiano();
     renderAcronyms();
