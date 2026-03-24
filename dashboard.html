@@ -209,6 +209,49 @@
     }
     .reset-btn:hover { color: #d32f2f; border-color: #d32f2f; }
 
+    /* Chord reference */
+    .chord-ref {
+      margin-bottom: 2rem;
+    }
+    .chord-ref summary {
+      cursor: pointer;
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.8rem;
+      user-select: none;
+    }
+    .chord-ref summary:hover { color: #4a90d9; }
+    .chord-ref table {
+      font-size: 0.82rem;
+    }
+    .chord-ref th {
+      font-size: 0.75rem;
+      white-space: nowrap;
+    }
+    .chord-ref td {
+      text-align: left;
+      padding: 0.35rem 0.5rem;
+    }
+    .chord-ref td.chords-cell {
+      font-weight: 600;
+      font-family: 'SF Mono', 'Menlo', monospace;
+      font-size: 0.8rem;
+      white-space: nowrap;
+    }
+    .chord-ref .tier-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #888;
+      padding-top: 0.8rem;
+      padding-bottom: 0.3rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .chord-ref .song-examples {
+      font-size: 0.75rem;
+      color: #777;
+    }
+
     @media (max-width: 500px) {
       .timers { flex-direction: column; }
       .timer-card { min-width: unset; }
@@ -246,6 +289,96 @@
       <span class="time">~4 min</span> — 7 core rhythms per hand. Left thumb on C, right thumb on C, pinky on G. One hand plays steady 1-2-3-4, the other plays a rhythm pattern. Then swap hands. Progress: steady rhythms → change left hand notes (C-D-E-F-G) → combine two rhythms.
     </div>
   </div>
+
+  <details class="chord-ref" open>
+    <summary>Chord Progression Reference</summary>
+    <p style="font-size:0.8rem;color:#888;margin-bottom:0.6rem;">Use the "added chord strategy": learn first 2 chords, add 3rd, then 4th. One song per week.</p>
+
+    <p class="tier-label">Learn these first</p>
+    <table>
+      <thead>
+        <tr><th>Progression</th><th>Key of C</th><th>Key of G</th><th>Songs</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>I - V - vi - IV</td>
+          <td class="chords-cell">C - G - Am - F</td>
+          <td class="chords-cell">G - D - Em - C</td>
+          <td class="song-examples">Let It Be, No Woman No Cry, With or Without You, Someone Like You</td>
+        </tr>
+        <tr>
+          <td>vi - IV - I - V</td>
+          <td class="chords-cell">Am - F - C - G</td>
+          <td class="chords-cell">Em - C - G - D</td>
+          <td class="song-examples">Numb, Save Tonight, Africa, Zombie</td>
+        </tr>
+        <tr>
+          <td>I - vi - IV - V</td>
+          <td class="chords-cell">C - Am - F - G</td>
+          <td class="chords-cell">G - Em - C - D</td>
+          <td class="song-examples">Stand By Me, Every Breath You Take, Unchained Melody</td>
+        </tr>
+        <tr>
+          <td>I - IV - V - I</td>
+          <td class="chords-cell">C - F - G - C</td>
+          <td class="chords-cell">G - C - D - G</td>
+          <td class="song-examples">Twist and Shout, La Bamba, Wild Thing</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="tier-label">Next tier</p>
+    <table>
+      <thead>
+        <tr><th>Progression</th><th>Key of C</th><th>Key of G</th><th>Songs</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>I - V - IV</td>
+          <td class="chords-cell">C - G - F</td>
+          <td class="chords-cell">G - D - C</td>
+          <td class="song-examples">Sweet Home Alabama, Louie Louie, Stir It Up</td>
+        </tr>
+        <tr>
+          <td>I - IV - vi - V</td>
+          <td class="chords-cell">C - F - Am - G</td>
+          <td class="chords-cell">G - C - Em - D</td>
+          <td class="song-examples">Someone Like You, Demons, Apologize</td>
+        </tr>
+        <tr>
+          <td>ii - V - I</td>
+          <td class="chords-cell">Dm - G - C</td>
+          <td class="chords-cell">Am - D - G</td>
+          <td class="song-examples">Fly Me to the Moon, Autumn Leaves (jazz standard)</td>
+        </tr>
+        <tr>
+          <td>i - VI - III - VII</td>
+          <td class="chords-cell">Am - F - C - G</td>
+          <td class="chords-cell">Em - C - G - D</td>
+          <td class="song-examples">All Along the Watchtower, Stairway to Heaven</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="tier-label">Blues &amp; Classical</p>
+    <table>
+      <thead>
+        <tr><th>Progression</th><th>Chords</th><th>Songs</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>12 Bar Blues (C)</td>
+          <td class="chords-cell">C-C-C-C | F-F-C-C | G-F-C-G</td>
+          <td class="song-examples">Every blues song, Rock Around the Clock</td>
+        </tr>
+        <tr>
+          <td>Canon (D)</td>
+          <td class="chords-cell">D-A-Bm-F#m | G-D-G-A</td>
+          <td class="song-examples">Canon in D, Basket Case, Don't Stop Believin'</td>
+        </tr>
+      </tbody>
+    </table>
+  </details>
 
   <h2>12-Week Progress (5/7 Method)</h2>
   <p style="font-size:0.8rem;color:#888;margin-bottom:0.8rem;">Click a cell to add a tally. Goal: 5 per week (7 = perfect). Click a completed cell to undo.</p>
