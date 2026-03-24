@@ -241,6 +241,10 @@
       <h3>3. Improvisation</h3>
       <span class="time">~4 min</span> — Left hand alternates C and G (pinky/thumb). Right hand plays any white keys freely. Be creative and develop your own style.
     </div>
+    <div class="exercise-desc">
+      <h3>4. Hand Independence</h3>
+      <span class="time">~4 min</span> — 7 core rhythms per hand. Left thumb on C, right thumb on C, pinky on G. One hand plays steady 1-2-3-4, the other plays a rhythm pattern. Then swap hands. Progress: steady rhythms → change left hand notes (C-D-E-F-G) → combine two rhythms.
+    </div>
   </div>
 
   <h2>12-Week Progress (5/7 Method)</h2>
@@ -257,6 +261,7 @@
       { key: 'drill', name: 'Five Finger Drill', targetMin: 2 },
       { key: 'chords', name: 'Chord Progressions', targetMin: 4 },
       { key: 'improv', name: 'Improvisation', targetMin: 4 },
+      { key: 'independence', name: 'Hand Independence', targetMin: 4 },
     ];
     const WEEKS = 12;
     const GOAL = 5;
@@ -265,13 +270,23 @@
     // --- Storage ---
     function loadData() {
       const raw = localStorage.getItem('piano-dashboard');
-      if (raw) return JSON.parse(raw);
-      // Init empty grid: { grid: { drill: [0,0,...], chords: [...], improv: [...] }, todayDone: {} }
-      const grid = {};
-      for (const ex of EXERCISES) {
-        grid[ex.key] = new Array(WEEKS).fill(0);
+      let d;
+      if (raw) {
+        d = JSON.parse(raw);
+      } else {
+        const grid = {};
+        for (const ex of EXERCISES) {
+          grid[ex.key] = new Array(WEEKS).fill(0);
+        }
+        d = { grid, todayDone: {}, startDate: new Date().toISOString().slice(0, 10) };
       }
-      return { grid, todayDone: {}, startDate: new Date().toISOString().slice(0, 10) };
+      // Ensure any new exercises get added to existing data
+      for (const ex of EXERCISES) {
+        if (!d.grid[ex.key]) {
+          d.grid[ex.key] = new Array(WEEKS).fill(0);
+        }
+      }
+      return d;
     }
 
     function saveData(data) {
