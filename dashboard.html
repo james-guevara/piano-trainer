@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Piano Practice Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #fafafa;
+      color: #222;
+      min-height: 100vh;
+      padding: 1.5rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+    h1 { font-size: 1.4rem; font-weight: 600; }
+    .nav-link {
+      font-size: 0.9rem;
+      color: #4a90d9;
+      text-decoration: none;
+    }
+    .nav-link:hover { text-decoration: underline; }
+
+    /* Timer section */
+    .timers {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+    .timer-card {
+      flex: 1;
+      min-width: 200px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .timer-card h3 {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 0.3rem;
+      font-weight: 500;
+    }
+    .timer-card .timer-display {
+      font-size: 2.2rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      margin-bottom: 0.5rem;
+    }
+    .timer-card .timer-target {
+      font-size: 0.75rem;
+      color: #999;
+      margin-bottom: 0.6rem;
+    }
+    .timer-btns {
+      display: flex;
+      gap: 0.4rem;
+      justify-content: center;
+    }
+    .timer-btn {
+      font-family: inherit;
+      font-size: 0.8rem;
+      padding: 0.3rem 0.8rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .timer-btn:hover { background: #f0f0f0; }
+    .timer-btn.start { background: #333; color: #fff; border-color: #333; }
+    .timer-btn.start:hover { background: #555; }
+    .timer-btn.done { background: #4caf50; color: #fff; border-color: #4caf50; }
+    .timer-btn.done:hover { background: #43a047; }
+    .timer-card.completed { border-color: #4caf50; background: #f8fff8; }
+    .timer-card.running { border-color: #4a90d9; background: #f5f9ff; }
+
+    /* Today's summary */
+    .today-summary {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 1rem 1.2rem;
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .today-summary .date {
+      font-weight: 600;
+      font-size: 1rem;
+    }
+    .today-summary .status {
+      font-size: 0.9rem;
+      color: #666;
+    }
+    .today-summary .status.all-done { color: #4caf50; font-weight: 600; }
+
+    /* 12-week grid */
+    h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.8rem;
+    }
+    .grid-container {
+      overflow-x: auto;
+      margin-bottom: 2rem;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 0.85rem;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 0.4rem 0.5rem;
+      text-align: center;
+    }
+    th {
+      background: #f5f5f5;
+      font-weight: 600;
+      font-size: 0.8rem;
+      color: #555;
+    }
+    th.exercise-col { min-width: 140px; text-align: left; }
+    td.week-label {
+      font-weight: 600;
+      color: #555;
+      background: #f9f9f9;
+      text-align: left;
+      white-space: nowrap;
+    }
+    td.tally-cell {
+      min-width: 36px;
+      cursor: pointer;
+      transition: background 0.15s;
+      user-select: none;
+      font-size: 0.95rem;
+    }
+    td.tally-cell:hover { background: #f0f0f0; }
+    td.tally-cell.complete {
+      background: #e8f5e9;
+      color: #4caf50;
+      font-weight: 700;
+    }
+    td.tally-cell.perfect {
+      background: #c8e6c9;
+      color: #2e7d32;
+      font-weight: 700;
+    }
+    .tally-marks {
+      letter-spacing: 1px;
+    }
+    .week-total {
+      font-size: 0.75rem;
+      color: #999;
+    }
+
+    /* Exercise descriptions */
+    .exercise-info {
+      margin-bottom: 2rem;
+    }
+    .exercise-desc {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      margin-bottom: 0.6rem;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    .exercise-desc h3 {
+      font-size: 0.9rem;
+      margin-bottom: 0.3rem;
+    }
+    .exercise-desc .time {
+      color: #888;
+      font-size: 0.8rem;
+    }
+
+    /* Reset button */
+    .reset-section {
+      text-align: center;
+      margin-top: 2rem;
+      padding-top: 1rem;
+      border-top: 1px solid #eee;
+    }
+    .reset-btn {
+      font-family: inherit;
+      font-size: 0.8rem;
+      padding: 0.3rem 1rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      background: #fff;
+      color: #999;
+      cursor: pointer;
+    }
+    .reset-btn:hover { color: #d32f2f; border-color: #d32f2f; }
+
+    @media (max-width: 500px) {
+      .timers { flex-direction: column; }
+      .timer-card { min-width: unset; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Practice Dashboard</h1>
+    <a href="index.html" class="nav-link">Exercises</a>
+  </div>
+
+  <div class="today-summary">
+    <span class="date" id="today-date"></span>
+    <span class="status" id="today-status"></span>
+  </div>
+
+  <div class="timers" id="timers"></div>
+
+  <div class="exercise-info">
+    <div class="exercise-desc">
+      <h3>1. Five Finger Drill</h3>
+      <span class="time">~2 min</span> — Play up 5 fingers and back (twice per position), moving up one note each time. Focus on wrist circles: down/out toward pinky, up/in toward thumb. Both hands.
+    </div>
+    <div class="exercise-desc">
+      <h3>2. Chord Progressions</h3>
+      <span class="time">~4 min</span> — Pick a song's chords. Use the "added chord strategy": learn first 2 chords, then add 3rd, then 4th. Right hand chords, left hand root notes, then together.
+    </div>
+    <div class="exercise-desc">
+      <h3>3. Improvisation</h3>
+      <span class="time">~4 min</span> — Left hand alternates C and G (pinky/thumb). Right hand plays any white keys freely. Be creative and develop your own style.
+    </div>
+  </div>
+
+  <h2>12-Week Progress (5/7 Method)</h2>
+  <p style="font-size:0.8rem;color:#888;margin-bottom:0.8rem;">Click a cell to add a tally. Goal: 5 per week (7 = perfect). Click a completed cell to undo.</p>
+  <div class="grid-container" id="grid-container"></div>
+
+  <div class="reset-section">
+    <button class="reset-btn" id="reset-btn">Reset All Progress</button>
+  </div>
+
+  <script>
+    // --- Data ---
+    const EXERCISES = [
+      { key: 'drill', name: 'Five Finger Drill', targetMin: 2 },
+      { key: 'chords', name: 'Chord Progressions', targetMin: 4 },
+      { key: 'improv', name: 'Improvisation', targetMin: 4 },
+    ];
+    const WEEKS = 12;
+    const GOAL = 5;
+    const PERFECT = 7;
+
+    // --- Storage ---
+    function loadData() {
+      const raw = localStorage.getItem('piano-dashboard');
+      if (raw) return JSON.parse(raw);
+      // Init empty grid: { grid: { drill: [0,0,...], chords: [...], improv: [...] }, todayDone: {} }
+      const grid = {};
+      for (const ex of EXERCISES) {
+        grid[ex.key] = new Array(WEEKS).fill(0);
+      }
+      return { grid, todayDone: {}, startDate: new Date().toISOString().slice(0, 10) };
+    }
+
+    function saveData(data) {
+      localStorage.setItem('piano-dashboard', JSON.stringify(data));
+    }
+
+    let data = loadData();
+
+    // --- Today ---
+    function todayKey() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function currentWeek() {
+      if (!data.startDate) return 0;
+      const start = new Date(data.startDate);
+      const now = new Date();
+      const diff = Math.floor((now - start) / (7 * 24 * 60 * 60 * 1000));
+      return Math.min(diff, WEEKS - 1);
+    }
+
+    function renderTodaySummary() {
+      const dateEl = document.getElementById('today-date');
+      const statusEl = document.getElementById('today-status');
+      const today = todayKey();
+      const opts = { weekday: 'long', month: 'long', day: 'numeric' };
+      dateEl.textContent = new Date().toLocaleDateString('en-US', opts);
+
+      const done = EXERCISES.filter(ex => data.todayDone[today] && data.todayDone[today][ex.key]).length;
+      if (done === EXERCISES.length) {
+        statusEl.textContent = 'All exercises done today!';
+        statusEl.className = 'status all-done';
+      } else {
+        statusEl.textContent = `${done}/${EXERCISES.length} exercises done today`;
+        statusEl.className = 'status';
+      }
+    }
+
+    // --- Timers ---
+    const timerStates = {};
+    for (const ex of EXERCISES) {
+      timerStates[ex.key] = { seconds: 0, running: false, interval: null };
+    }
+
+    function renderTimers() {
+      const container = document.getElementById('timers');
+      container.innerHTML = '';
+      const today = todayKey();
+
+      for (const ex of EXERCISES) {
+        const ts = timerStates[ex.key];
+        const isDone = data.todayDone[today] && data.todayDone[today][ex.key];
+
+        const card = document.createElement('div');
+        card.className = 'timer-card' + (isDone ? ' completed' : ts.running ? ' running' : '');
+
+        const mins = Math.floor(ts.seconds / 60);
+        const secs = ts.seconds % 60;
+        const display = `${mins}:${secs.toString().padStart(2, '0')}`;
+
+        card.innerHTML = `
+          <h3>${ex.name}</h3>
+          <div class="timer-display">${display}</div>
+          <div class="timer-target">Target: ${ex.targetMin} min</div>
+          <div class="timer-btns">
+            ${isDone
+              ? '<button class="timer-btn done" disabled>Done</button>'
+              : ts.running
+                ? `<button class="timer-btn" data-action="pause" data-key="${ex.key}">Pause</button>
+                   <button class="timer-btn done" data-action="done" data-key="${ex.key}">Done</button>`
+                : `<button class="timer-btn start" data-action="start" data-key="${ex.key}">Start</button>
+                   ${ts.seconds > 0 ? `<button class="timer-btn" data-action="reset" data-key="${ex.key}">Reset</button>
+                   <button class="timer-btn done" data-action="done" data-key="${ex.key}">Done</button>` : ''}`
+            }
+          </div>
+        `;
+        container.appendChild(card);
+      }
+
+      // Attach events
+      container.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const key = btn.dataset.key;
+          const action = btn.dataset.action;
+          if (action === 'start') startTimer(key);
+          else if (action === 'pause') pauseTimer(key);
+          else if (action === 'reset') resetTimer(key);
+          else if (action === 'done') markDone(key);
+        });
+      });
+    }
+
+    function startTimer(key) {
+      const ts = timerStates[key];
+      if (ts.running) return;
+      ts.running = true;
+      ts.interval = setInterval(() => {
+        ts.seconds++;
+        renderTimers();
+      }, 1000);
+      renderTimers();
+    }
+
+    function pauseTimer(key) {
+      const ts = timerStates[key];
+      ts.running = false;
+      clearInterval(ts.interval);
+      renderTimers();
+    }
+
+    function resetTimer(key) {
+      const ts = timerStates[key];
+      ts.running = false;
+      clearInterval(ts.interval);
+      ts.seconds = 0;
+      renderTimers();
+    }
+
+    function markDone(key) {
+      const ts = timerStates[key];
+      ts.running = false;
+      clearInterval(ts.interval);
+
+      const today = todayKey();
+      if (!data.todayDone[today]) data.todayDone[today] = {};
+      data.todayDone[today][key] = true;
+
+      // Add tally to current week
+      const week = currentWeek();
+      if (data.grid[key][week] < PERFECT) {
+        data.grid[key][week]++;
+      }
+      saveData(data);
+      renderTimers();
+      renderTodaySummary();
+      renderGrid();
+    }
+
+    // --- 12-Week Grid ---
+    function renderGrid() {
+      const container = document.getElementById('grid-container');
+      const week = currentWeek();
+
+      let html = '<table><thead><tr><th class="exercise-col">Exercise</th>';
+      for (let w = 0; w < WEEKS; w++) {
+        const isCurrent = w === week;
+        html += `<th${isCurrent ? ' style="background:#e3f2fd;"' : ''}>Wk ${w + 1}</th>`;
+      }
+      html += '</tr></thead><tbody>';
+
+      for (const ex of EXERCISES) {
+        html += `<tr><td class="week-label">${ex.name}</td>`;
+        for (let w = 0; w < WEEKS; w++) {
+          const count = data.grid[ex.key][w];
+          const isCurrent = w === week;
+          let cls = 'tally-cell';
+          if (count >= PERFECT) cls += ' perfect';
+          else if (count >= GOAL) cls += ' complete';
+
+          // Tally display
+          let display = '';
+          if (count > 0) {
+            display = '<span class="tally-marks">' + '|'.repeat(count) + '</span>';
+          }
+
+          const bgStyle = isCurrent ? ' style="background:#f5f9ff;"' : '';
+          html += `<td class="${cls}" data-key="${ex.key}" data-week="${w}"${bgStyle}>${display}</td>`;
+        }
+        html += '</tr>';
+      }
+
+      html += '</tbody></table>';
+      container.innerHTML = html;
+
+      // Click to manually add/remove tallies
+      container.querySelectorAll('.tally-cell').forEach(cell => {
+        cell.addEventListener('click', () => {
+          const key = cell.dataset.key;
+          const w = parseInt(cell.dataset.week);
+          if (data.grid[key][w] >= PERFECT) {
+            data.grid[key][w] = 0; // Reset on click if perfect
+          } else {
+            data.grid[key][w]++;
+          }
+          saveData(data);
+          renderGrid();
+        });
+      });
+    }
+
+    // --- Reset ---
+    document.getElementById('reset-btn').addEventListener('click', () => {
+      if (confirm('Reset all progress? This cannot be undone.')) {
+        localStorage.removeItem('piano-dashboard');
+        data = loadData();
+        for (const ex of EXERCISES) {
+          resetTimer(ex.key);
+        }
+        renderTimers();
+        renderTodaySummary();
+        renderGrid();
+      }
+    });
+
+    // --- Init ---
+    renderTodaySummary();
+    renderTimers();
+    renderGrid();
+  </script>
+</body>
+</html>
