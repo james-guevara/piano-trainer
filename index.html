@@ -430,6 +430,7 @@
     <label id="shapes-drill-label" style="display:none;">
       Drill:
       <select id="shapes-drill-select">
+        <option value="name-shape">Name the Shape</option>
         <option value="all-white">All-White (C, F, G)</option>
         <option value="w-b-w">White-Black-White (E, A, B)</option>
         <option value="b-w-b">Black-White-Black (Db, Eb, Ab)</option>
@@ -652,7 +653,13 @@
       const drill = state.shapesDrill;
       let root, type, inversion = 0, label, shapeNote = '';
 
-      if (SHAPE_GROUPS[drill]) {
+      if (drill === 'name-shape') {
+        const roots = state.shapesDiff === 'easy' ? EASY_ROOTS : ALL_ROOTS;
+        root = pickFromPool(roots, state.lastShapeRoot);
+        type = 'major';
+        label = root.replace('#', '\u266F') + ' major';
+        // expectedNotes not needed for this drill, but set for consistency
+      } else if (SHAPE_GROUPS[drill]) {
         // Physical shape group drill
         const group = SHAPE_GROUPS[drill];
         root = pickFromPool(group.roots, state.lastShapeRoot);
@@ -756,7 +763,7 @@
     const shapesDiffSelect = document.getElementById('shapes-diff-select');
     const shapesDrillSelect = document.getElementById('shapes-drill-select');
     shapesDiffSelect.addEventListener('change', () => { state.shapesDiff = shapesDiffSelect.value; newRound(); });
-    shapesDrillSelect.addEventListener('change', () => { state.shapesDrill = shapesDrillSelect.value; newRound(); });
+    shapesDrillSelect.addEventListener('change', () => { state.shapesDrill = shapesDrillSelect.value; updateModeUI(); newRound(); });
 
     const progressionSelect = document.getElementById('progression-select');
     // Populate progression dropdown
@@ -829,13 +836,43 @@
       document.getElementById('prog-progress').style.display = isProgression ? '' : 'none';
 
       // Show note buttons
-      const showButtons = isNameKey || isNameChord || isProgression;
+      const showButtons = isNameKey || isNameChord || isProgression || (isShapes && state.shapesDrill === 'name-shape');
       document.getElementById('note-buttons').style.display = showButtons ? '' : 'none';
       if (isNameKey) renderNoteButtons();
       if (isNameChord || isProgression) renderChordButtons();
+      if (isShapes && state.shapesDrill === 'name-shape') renderShapeButtons();
 
       renderAcronyms();
       updateHouseLabels();
+    }
+
+    const SHAPE_ANSWERS = [
+      { key: 'all-white', label: 'W-W-W', desc: 'All White' },
+      { key: 'w-b-w', label: 'W-B-W', desc: 'White-Black-White' },
+      { key: 'b-w-b', label: 'B-W-B', desc: 'Black-White-Black' },
+      { key: 'all-black', label: 'B-B-B', desc: 'All Black' },
+    ];
+
+    // Classify a major chord root into its physical shape
+    function classifyShape(root) {
+      for (const [groupKey, group] of Object.entries(SHAPE_GROUPS)) {
+        if (group.roots.includes(root)) return groupKey;
+      }
+      return 'w-b-w'; // fallback
+    }
+
+    function renderShapeButtons() {
+      const container = document.getElementById('note-buttons');
+      container.innerHTML = '';
+      for (const sa of SHAPE_ANSWERS) {
+        const btn = document.createElement('button');
+        btn.className = 'note-btn';
+        btn.style.fontSize = '0.85rem';
+        btn.style.padding = '0.4rem 0.8rem';
+        btn.innerHTML = `<strong>${sa.label}</strong><br><span style="font-size:0.7rem;font-weight:normal;color:#888;">${sa.desc}</span>`;
+        btn.addEventListener('click', () => handleAnswer(sa.key, btn));
+        container.appendChild(btn);
+      }
     }
 
     function renderNoteButtons() {
@@ -1469,6 +1506,11 @@
         const [ansRoot, ansType] = answer.split('|');
         correct = (ansRoot === chord.root && ansType === chord.type);
         correctDisplay = chordDisplayName(chord.root, chord.type);
+      } else if (state.mode === 'chord-shapes' && state.shapesDrill === 'name-shape') {
+        const correctShape = classifyShape(state.currentShape.root);
+        correct = (answer === correctShape);
+        const sa = SHAPE_ANSWERS.find(s => s.key === correctShape);
+        correctDisplay = sa ? sa.desc : correctShape;
       }
 
       const responseMs = performance.now() - state.noteStartTime;
@@ -1523,6 +1565,14 @@
           } else if (state.mode === 'name-chord') {
             document.querySelectorAll('.note-btn').forEach(btn => {
               if (btn.textContent === correctDisplay) btn.classList.add('hint');
+            });
+          } else if (state.mode === 'chord-shapes' && state.shapesDrill === 'name-shape') {
+            // Highlight correct shape button
+            const correctShapeKey = classifyShape(state.currentShape.root);
+            document.querySelectorAll('.note-btn').forEach(btn => {
+              if (btn.querySelector('strong') && btn.querySelector('strong').textContent === SHAPE_ANSWERS.find(s => s.key === correctShapeKey)?.label) {
+                btn.classList.add('hint');
+              }
             });
           } else {
             highlightCorrectKey(state.currentKeyNote);
@@ -1864,9 +1914,13 @@
       } else if (state.mode === 'chord-shapes') {
         state.currentShape = generateShapeChord();
         state.shapeClickedNotes = [];
-        const numNotes = state.currentShape.expectedNotes.length;
-        const shapeHint = state.currentShape.shapeNote ? ` <span class="prompt-label" style="margin-left:0.3rem;">${state.currentShape.shapeNote}</span>` : '';
-        promptEl.innerHTML = `<span class="prompt-label">Build:</span> ${state.currentShape.label}${shapeHint} <span class="prompt-label" style="margin-left:0.3rem;">(${numNotes} notes)</span>`;
+        if (state.shapesDrill === 'name-shape') {
+          promptEl.innerHTML = `<span class="prompt-label">What shape is</span> ${state.currentShape.label}<span class="prompt-label">?</span>`;
+        } else {
+          const numNotes = state.currentShape.expectedNotes.length;
+          const shapeHint = state.currentShape.shapeNote ? ` <span class="prompt-label" style="margin-left:0.3rem;">${state.currentShape.shapeNote}</span>` : '';
+          promptEl.innerHTML = `<span class="prompt-label">Build:</span> ${state.currentShape.label}${shapeHint} <span class="prompt-label" style="margin-left:0.3rem;">(${numNotes} notes)</span>`;
+        }
       } else if (state.mode === 'chord-progression') {
         const idx = parseInt(progressionSelect.value) || 0;
         state.currentProgression = PROGRESSIONS[idx];
