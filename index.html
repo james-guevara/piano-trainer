@@ -382,6 +382,7 @@
         <option value="build-chord">Build the Chord</option>
         <option value="name-chord">Name the Chord</option>
         <option value="chord-progression">Chord Progression</option>
+        <option value="chord-shapes">Chord Shapes</option>
       </select>
     </label>
     <label id="clef-label">
@@ -418,6 +419,22 @@
     <label id="progression-label" style="display:none;">
       Song:
       <select id="progression-select"></select>
+    </label>
+    <label id="shapes-diff-label" style="display:none;">
+      Level:
+      <select id="shapes-diff-select">
+        <option value="easy">Easy (white-key roots)</option>
+        <option value="advanced">Advanced (all 12 keys)</option>
+      </select>
+    </label>
+    <label id="shapes-drill-label" style="display:none;">
+      Drill:
+      <select id="shapes-drill-select">
+        <option value="major">All Major</option>
+        <option value="minor">All Minor</option>
+        <option value="mixed">Mixed Maj/Min</option>
+        <option value="inversions">Inversions</option>
+      </select>
     </label>
   </div>
 
@@ -597,6 +614,61 @@
       { name: 'Canon in D', chords: [{root:'D',type:'major'},{root:'A',type:'major'},{root:'B',type:'minor'},{root:'F',type:'minor'},{root:'G',type:'major'},{root:'D',type:'major'},{root:'G',type:'major'},{root:'A',type:'major'}] },
     ];
 
+    // --- Chord Shapes ---
+    const EASY_ROOTS = ['C','D','E','F','G','A','B'];
+    const ALL_ROOTS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const INVERSION_NAMES = ['Root', '1st inv', '2nd inv'];
+
+    function getChordNotesInversion(rootName, type, inversion) {
+      const intervals = CHORD_TYPES[type].intervals.slice(0, 3); // triads only for inversions
+      const rootSemi = NOTE_TO_SEMI[rootName];
+      const semis = intervals.map(i => (rootSemi + i) % 12);
+      // Rotate for inversion
+      for (let i = 0; i < inversion; i++) {
+        semis.push(semis.shift());
+      }
+      return semis.map(s => SEMI_TO_NOTE[s]);
+    }
+
+    function generateShapeChord() {
+      const roots = state.shapesDiff === 'easy' ? EASY_ROOTS : ALL_ROOTS;
+      const drill = state.shapesDrill;
+      let root, type, inversion = 0, label;
+
+      if (drill === 'major') {
+        do { root = roots[Math.floor(Math.random() * roots.length)]; } while (root === state.lastShapeRoot);
+        type = 'major';
+        label = root.replace('#', '\u266F');
+      } else if (drill === 'minor') {
+        do { root = roots[Math.floor(Math.random() * roots.length)]; } while (root === state.lastShapeRoot);
+        type = 'minor';
+        label = root.replace('#', '\u266F') + 'm';
+      } else if (drill === 'mixed') {
+        do {
+          root = roots[Math.floor(Math.random() * roots.length)];
+          type = Math.random() < 0.5 ? 'major' : 'minor';
+        } while (root === state.lastShapeRoot && type === state.lastShapeType);
+        label = root.replace('#', '\u266F') + (type === 'minor' ? 'm' : '');
+      } else if (drill === 'inversions') {
+        do {
+          root = roots[Math.floor(Math.random() * roots.length)];
+          type = Math.random() < 0.5 ? 'major' : 'minor';
+          inversion = Math.floor(Math.random() * 3);
+        } while (root === state.lastShapeRoot && inversion === state.lastShapeInv);
+        label = root.replace('#', '\u266F') + (type === 'minor' ? 'm' : '') + ' (' + INVERSION_NAMES[inversion] + ')';
+      }
+
+      state.lastShapeRoot = root;
+      state.lastShapeType = type;
+      state.lastShapeInv = inversion;
+
+      const notes = inversion > 0
+        ? getChordNotesInversion(root, type, inversion)
+        : getChordNotes(root, type);
+
+      return { root, type, inversion, label, expectedNotes: notes };
+    }
+
     // --- State ---
     let state = {
       mode: 'staff-reading',
@@ -618,6 +690,14 @@
       // For build-chord: track which notes user has clicked
       chordClickedNotes: [],
       chordExpectedNotes: [],
+      // Chord shapes mode
+      shapesDiff: 'easy',
+      shapesDrill: 'major',
+      currentShape: null,
+      lastShapeRoot: null,
+      lastShapeType: null,
+      lastShapeInv: null,
+      shapeClickedNotes: [],
       // Progression mode
       currentProgression: null,
       progIndex: 0,
@@ -644,6 +724,11 @@
 
     const chordTypesSelect = document.getElementById('chord-types-select');
     chordTypesSelect.addEventListener('change', () => { state.chordTier = chordTypesSelect.value; newRound(); });
+
+    const shapesDiffSelect = document.getElementById('shapes-diff-select');
+    const shapesDrillSelect = document.getElementById('shapes-drill-select');
+    shapesDiffSelect.addEventListener('change', () => { state.shapesDiff = shapesDiffSelect.value; newRound(); });
+    shapesDrillSelect.addEventListener('change', () => { state.shapesDrill = shapesDrillSelect.value; newRound(); });
 
     const progressionSelect = document.getElementById('progression-select');
     // Populate progression dropdown
@@ -690,22 +775,27 @@
       const isBuildChord = state.mode === 'build-chord';
       const isNameChord = state.mode === 'name-chord';
       const isProgression = state.mode === 'chord-progression';
+      const isShapes = state.mode === 'chord-shapes';
       const isChordMode = isBuildChord || isNameChord;
 
       // Show/hide staff vs prompt
       staffContainer.style.display = (isStaff || isNameChord || isProgression) ? '' : 'none';
-      promptEl.style.display = (isFindKey || isNameKey || isBuildChord) ? '' : 'none';
+      promptEl.style.display = (isFindKey || isNameKey || isBuildChord || isShapes) ? '' : 'none';
 
       // Show/hide staff-specific settings
       document.getElementById('clef-label').style.display = isStaff ? '' : 'none';
       document.getElementById('range-label').style.display = isStaff ? '' : 'none';
-      document.getElementById('acc-label').style.display = (isChordMode || isProgression) ? 'none' : '';
+      document.getElementById('acc-label').style.display = (isChordMode || isProgression || isShapes) ? 'none' : '';
 
       // Show chord types setting
       document.getElementById('chord-types-label').style.display = isChordMode ? '' : 'none';
 
       // Show progression selector
       document.getElementById('progression-label').style.display = isProgression ? '' : 'none';
+
+      // Show chord shapes settings
+      document.getElementById('shapes-diff-label').style.display = isShapes ? '' : 'none';
+      document.getElementById('shapes-drill-label').style.display = isShapes ? '' : 'none';
 
       // Show progress dots
       document.getElementById('prog-progress').style.display = isProgression ? '' : 'none';
@@ -824,6 +914,21 @@
           if (state.accidentals) {
             html += `<br><span class="label">Sharp &#9839;:</span> move up one key &nbsp; <span class="label">Flat &#9837;:</span> move down one key`;
           }
+          html += `</div>`;
+        }
+      } else if (state.mode === 'chord-shapes') {
+        html += `<div class="clef-section">`;
+        html += `<h3>Chord Shapes</h3>`;
+        html += `<span class="label">Major shape:</span> root + 4 semitones + 3 semitones<br>`;
+        html += `<span class="label">Minor shape:</span> root + 3 semitones + 4 semitones<br>`;
+        html += `<span style="color:#888;">Same shape works for every root — just shift it.</span>`;
+        html += `</div>`;
+        if (state.shapesDrill === 'inversions') {
+          html += `<div class="clef-section">`;
+          html += `<h3>Inversions</h3>`;
+          html += `<span class="label">Root position:</span> 1 - 3 - 5 &nbsp;(e.g., C-E-G)<br>`;
+          html += `<span class="label">1st inversion:</span> 3 - 5 - 1 &nbsp;(e.g., E-G-C)<br>`;
+          html += `<span class="label">2nd inversion:</span> 5 - 1 - 3 &nbsp;(e.g., G-C-E)`;
           html += `</div>`;
         }
       } else if (state.mode === 'build-chord' || state.mode === 'name-chord') {
@@ -1141,6 +1246,8 @@
         handleAnswer(noteName, element);
       } else if (state.mode === 'build-chord') {
         handleChordClick(noteName, element);
+      } else if (state.mode === 'chord-shapes') {
+        handleShapeClick(noteName, element);
       } else if (state.mode === 'name-chord' || state.mode === 'chord-progression') {
         if (state.waitingForNext) {
           clearFeedback();
@@ -1221,6 +1328,75 @@
           state.waitingForNext = true;
         }
         state.chordClickedNotes = [];
+      }
+    }
+
+    function handleShapeClick(noteName, element) {
+      if (state.waitingForNext) {
+        clearFeedback();
+        newRound();
+        return;
+      }
+
+      // Toggle note selection
+      const idx = state.shapeClickedNotes.indexOf(noteName);
+      if (idx >= 0) {
+        state.shapeClickedNotes.splice(idx, 1);
+        element.classList.remove('highlighted');
+      } else {
+        state.shapeClickedNotes.push(noteName);
+        element.classList.add('highlighted');
+      }
+
+      // Check when user has clicked enough notes
+      const expected = state.currentShape.expectedNotes;
+      if (state.shapeClickedNotes.length === expected.length) {
+        const clicked = [...state.shapeClickedNotes].sort();
+        const exp = [...expected].sort();
+        const correct = clicked.length === exp.length && clicked.every((n, i) => n === exp[i]);
+
+        const responseMs = performance.now() - state.noteStartTime;
+        const label = state.currentShape.label;
+
+        if (correct) {
+          state.correct++;
+          state.total++;
+          state.streak++;
+          if (state.streak > state.bestStreak) state.bestStreak = state.streak;
+          state.responseTimes.push(responseMs);
+          updateResponseTime(responseMs);
+          updateStreak();
+          document.querySelectorAll('.highlighted').forEach(el => {
+            el.classList.remove('highlighted');
+            el.classList.add('correct');
+          });
+          document.getElementById('feedback').textContent = `Correct! ${label}: ${expected.join('-')}`;
+          document.getElementById('feedback').style.color = '#4caf50';
+          updateScore();
+          setTimeout(() => {
+            clearFeedback();
+            newRound();
+          }, state.challengeActive ? 300 : 600);
+        } else {
+          state.total++;
+          state.streak = 0;
+          updateStreak();
+          document.querySelectorAll('.highlighted').forEach(el => {
+            el.classList.remove('highlighted');
+            el.classList.add('wrong');
+          });
+          // Highlight correct keys
+          for (const n of expected) {
+            document.querySelectorAll('.white-key, .black-key').forEach(key => {
+              if (key.dataset.note === n) key.classList.add('hint');
+            });
+          }
+          document.getElementById('feedback').textContent = `Wrong — ${label} is ${expected.join('-')}. Tap to continue.`;
+          document.getElementById('feedback').style.color = '#d32f2f';
+          updateScore();
+          state.waitingForNext = true;
+        }
+        state.shapeClickedNotes = [];
       }
     }
 
@@ -1652,6 +1828,11 @@
       } else if (state.mode === 'name-chord') {
         state.currentChord = generateChord();
         renderChordStaff(state.currentChord);
+      } else if (state.mode === 'chord-shapes') {
+        state.currentShape = generateShapeChord();
+        state.shapeClickedNotes = [];
+        const numNotes = state.currentShape.expectedNotes.length;
+        promptEl.innerHTML = `<span class="prompt-label">Build:</span> ${state.currentShape.label} <span class="prompt-label" style="margin-left:0.5rem;">(${numNotes} notes)</span>`;
       } else if (state.mode === 'chord-progression') {
         const idx = parseInt(progressionSelect.value) || 0;
         state.currentProgression = PROGRESSIONS[idx];
