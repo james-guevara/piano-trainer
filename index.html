@@ -383,6 +383,7 @@
         <option value="name-chord">Name the Chord</option>
         <option value="chord-progression">Chord Progression</option>
         <option value="chord-shapes">Chord Shapes</option>
+        <option value="name-shape">Name the Shape</option>
       </select>
     </label>
     <label id="clef-label">
@@ -811,16 +812,17 @@
       const isNameChord = state.mode === 'name-chord';
       const isProgression = state.mode === 'chord-progression';
       const isShapes = state.mode === 'chord-shapes';
+      const isNameShape = state.mode === 'name-shape';
       const isChordMode = isBuildChord || isNameChord;
 
       // Show/hide staff vs prompt
       staffContainer.style.display = (isStaff || isNameChord || isProgression) ? '' : 'none';
-      promptEl.style.display = (isFindKey || isNameKey || isBuildChord || isShapes) ? '' : 'none';
+      promptEl.style.display = (isFindKey || isNameKey || isBuildChord || isShapes || isNameShape) ? '' : 'none';
 
       // Show/hide staff-specific settings
       document.getElementById('clef-label').style.display = isStaff ? '' : 'none';
       document.getElementById('range-label').style.display = isStaff ? '' : 'none';
-      document.getElementById('acc-label').style.display = (isChordMode || isProgression || isShapes) ? 'none' : '';
+      document.getElementById('acc-label').style.display = (isChordMode || isProgression || isShapes || isNameShape) ? 'none' : '';
 
       // Show chord types setting
       document.getElementById('chord-types-label').style.display = isChordMode ? '' : 'none';
@@ -829,18 +831,18 @@
       document.getElementById('progression-label').style.display = isProgression ? '' : 'none';
 
       // Show chord shapes settings
-      document.getElementById('shapes-diff-label').style.display = isShapes ? '' : 'none';
+      document.getElementById('shapes-diff-label').style.display = (isShapes || isNameShape) ? '' : 'none';
       document.getElementById('shapes-drill-label').style.display = isShapes ? '' : 'none';
 
       // Show progress dots
       document.getElementById('prog-progress').style.display = isProgression ? '' : 'none';
 
       // Show note buttons
-      const showButtons = isNameKey || isNameChord || isProgression || (isShapes && state.shapesDrill === 'name-shape');
+      const showButtons = isNameKey || isNameChord || isProgression || isNameShape || (isShapes && state.shapesDrill === 'name-shape');
       document.getElementById('note-buttons').style.display = showButtons ? '' : 'none';
       if (isNameKey) renderNoteButtons();
       if (isNameChord || isProgression) renderChordButtons();
-      if (isShapes && state.shapesDrill === 'name-shape') renderShapeButtons();
+      if (isNameShape || (isShapes && state.shapesDrill === 'name-shape')) renderShapeButtons();
 
       renderAcronyms();
       updateHouseLabels();
@@ -981,7 +983,7 @@
           }
           html += `</div>`;
         }
-      } else if (state.mode === 'chord-shapes') {
+      } else if (state.mode === 'chord-shapes' || state.mode === 'name-shape') {
         html += `<div class="clef-section">`;
         html += `<h3>Physical Shapes (Major Triads)</h3>`;
         html += `<span class="label">W-W-W:</span> C, F, G — all white keys<br>`;
@@ -1318,6 +1320,8 @@
         handleChordClick(noteName, element);
       } else if (state.mode === 'chord-shapes') {
         handleShapeClick(noteName, element);
+      } else if (state.mode === 'name-shape') {
+        if (state.waitingForNext) { clearFeedback(); newRound(); }
       } else if (state.mode === 'name-chord' || state.mode === 'chord-progression') {
         if (state.waitingForNext) {
           clearFeedback();
@@ -1506,7 +1510,7 @@
         const [ansRoot, ansType] = answer.split('|');
         correct = (ansRoot === chord.root && ansType === chord.type);
         correctDisplay = chordDisplayName(chord.root, chord.type);
-      } else if (state.mode === 'chord-shapes' && state.shapesDrill === 'name-shape') {
+      } else if (state.mode === 'name-shape' || (state.mode === 'chord-shapes' && state.shapesDrill === 'name-shape')) {
         const correctShape = classifyShape(state.currentShape.root);
         correct = (answer === correctShape);
         const sa = SHAPE_ANSWERS.find(s => s.key === correctShape);
@@ -1566,7 +1570,7 @@
             document.querySelectorAll('.note-btn').forEach(btn => {
               if (btn.textContent === correctDisplay) btn.classList.add('hint');
             });
-          } else if (state.mode === 'chord-shapes' && state.shapesDrill === 'name-shape') {
+          } else if (state.mode === 'name-shape' || (state.mode === 'chord-shapes' && state.shapesDrill === 'name-shape')) {
             // Highlight correct shape button
             const correctShapeKey = classifyShape(state.currentShape.root);
             document.querySelectorAll('.note-btn').forEach(btn => {
@@ -1911,6 +1915,13 @@
       } else if (state.mode === 'name-chord') {
         state.currentChord = generateChord();
         renderChordStaff(state.currentChord);
+      } else if (state.mode === 'name-shape') {
+        // Top-level name-shape mode
+        const roots = state.shapesDiff === 'easy' ? EASY_ROOTS : ALL_ROOTS;
+        const root = pickFromPool(roots, state.lastShapeRoot);
+        state.lastShapeRoot = root;
+        state.currentShape = { root, type: 'major', label: root.replace('#', '\u266F') + ' major' };
+        promptEl.innerHTML = `<span class="prompt-label">What shape is</span> ${state.currentShape.label}<span class="prompt-label">?</span>`;
       } else if (state.mode === 'chord-shapes') {
         state.currentShape = generateShapeChord();
         state.shapeClickedNotes = [];
