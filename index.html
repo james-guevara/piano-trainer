@@ -430,8 +430,12 @@
     <label id="shapes-drill-label" style="display:none;">
       Drill:
       <select id="shapes-drill-select">
-        <option value="major">All Major</option>
-        <option value="minor">All Minor</option>
+        <option value="all-white">All-White (C, F, G)</option>
+        <option value="w-b-w">White-Black-White (E, A, B)</option>
+        <option value="b-w-b">Black-White-Black (Db, Eb, Ab)</option>
+        <option value="all-black">All-Black (F#/Gb)</option>
+        <option value="all-major">All Major (mixed)</option>
+        <option value="all-minor">All Minor</option>
         <option value="mixed">Mixed Maj/Min</option>
         <option value="inversions">Inversions</option>
       </select>
@@ -619,37 +623,61 @@
     const ALL_ROOTS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
     const INVERSION_NAMES = ['Root', '1st inv', '2nd inv'];
 
+    // Physical shape groups for major triads (based on black/white key pattern)
+    const SHAPE_GROUPS = {
+      'all-white':  { label: 'All-White (W-W-W)', roots: ['C','F','G'], desc: 'Three white keys' },
+      'w-b-w':      { label: 'White-Black-White (W-B-W)', roots: ['D','E','A','B'], desc: 'Black key in the middle' }, // D major has F# in middle too
+      'b-w-b':      { label: 'Black-White-Black (B-W-B)', roots: ['D#','G#','A#'], desc: 'White key in the middle' }, // Eb, Ab, Bb
+      'all-black':  { label: 'All-Black (B-B-B)', roots: ['F#'], desc: 'Three black keys' },
+    };
+    // Note: D major (D-F#-A) is W-B-W. We group by the physical feel.
+
     function getChordNotesInversion(rootName, type, inversion) {
-      const intervals = CHORD_TYPES[type].intervals.slice(0, 3); // triads only for inversions
+      const intervals = CHORD_TYPES[type].intervals.slice(0, 3);
       const rootSemi = NOTE_TO_SEMI[rootName];
       const semis = intervals.map(i => (rootSemi + i) % 12);
-      // Rotate for inversion
       for (let i = 0; i < inversion; i++) {
         semis.push(semis.shift());
       }
       return semis.map(s => SEMI_TO_NOTE[s]);
     }
 
-    function generateShapeChord() {
-      const roots = state.shapesDiff === 'easy' ? EASY_ROOTS : ALL_ROOTS;
-      const drill = state.shapesDrill;
-      let root, type, inversion = 0, label;
+    function pickFromPool(pool, lastKey) {
+      let pick;
+      do { pick = pool[Math.floor(Math.random() * pool.length)]; } while (pick === lastKey && pool.length > 1);
+      return pick;
+    }
 
-      if (drill === 'major') {
-        do { root = roots[Math.floor(Math.random() * roots.length)]; } while (root === state.lastShapeRoot);
+    function generateShapeChord() {
+      const drill = state.shapesDrill;
+      let root, type, inversion = 0, label, shapeNote = '';
+
+      if (SHAPE_GROUPS[drill]) {
+        // Physical shape group drill
+        const group = SHAPE_GROUPS[drill];
+        root = pickFromPool(group.roots, state.lastShapeRoot);
         type = 'major';
         label = root.replace('#', '\u266F');
-      } else if (drill === 'minor') {
-        do { root = roots[Math.floor(Math.random() * roots.length)]; } while (root === state.lastShapeRoot);
+        shapeNote = group.desc;
+      } else if (drill === 'all-major') {
+        const roots = state.shapesDiff === 'easy' ? EASY_ROOTS : ALL_ROOTS;
+        root = pickFromPool(roots, state.lastShapeRoot);
+        type = 'major';
+        label = root.replace('#', '\u266F');
+      } else if (drill === 'all-minor') {
+        const roots = state.shapesDiff === 'easy' ? EASY_ROOTS : ALL_ROOTS;
+        root = pickFromPool(roots, state.lastShapeRoot);
         type = 'minor';
         label = root.replace('#', '\u266F') + 'm';
       } else if (drill === 'mixed') {
+        const roots = state.shapesDiff === 'easy' ? EASY_ROOTS : ALL_ROOTS;
         do {
           root = roots[Math.floor(Math.random() * roots.length)];
           type = Math.random() < 0.5 ? 'major' : 'minor';
         } while (root === state.lastShapeRoot && type === state.lastShapeType);
         label = root.replace('#', '\u266F') + (type === 'minor' ? 'm' : '');
       } else if (drill === 'inversions') {
+        const roots = state.shapesDiff === 'easy' ? EASY_ROOTS : ALL_ROOTS;
         do {
           root = roots[Math.floor(Math.random() * roots.length)];
           type = Math.random() < 0.5 ? 'major' : 'minor';
@@ -666,7 +694,7 @@
         ? getChordNotesInversion(root, type, inversion)
         : getChordNotes(root, type);
 
-      return { root, type, inversion, label, expectedNotes: notes };
+      return { root, type, inversion, label, shapeNote, expectedNotes: notes };
     }
 
     // --- State ---
@@ -918,10 +946,15 @@
         }
       } else if (state.mode === 'chord-shapes') {
         html += `<div class="clef-section">`;
-        html += `<h3>Chord Shapes</h3>`;
-        html += `<span class="label">Major shape:</span> root + 4 semitones + 3 semitones<br>`;
-        html += `<span class="label">Minor shape:</span> root + 3 semitones + 4 semitones<br>`;
-        html += `<span style="color:#888;">Same shape works for every root — just shift it.</span>`;
+        html += `<h3>Physical Shapes (Major Triads)</h3>`;
+        html += `<span class="label">W-W-W:</span> C, F, G — all white keys<br>`;
+        html += `<span class="label">W-B-W:</span> D, E, A, B — black key in the middle<br>`;
+        html += `<span class="label">B-W-B:</span> Db, Eb, Ab — white key in the middle<br>`;
+        html += `<span class="label">B-B-B:</span> F#/Gb — all black keys`;
+        html += `</div>`;
+        html += `<div class="clef-section">`;
+        html += `<span class="label">Major:</span> root + 4 + 3 semitones<br>`;
+        html += `<span class="label">Minor:</span> root + 3 + 4 semitones`;
         html += `</div>`;
         if (state.shapesDrill === 'inversions') {
           html += `<div class="clef-section">`;
@@ -1832,7 +1865,8 @@
         state.currentShape = generateShapeChord();
         state.shapeClickedNotes = [];
         const numNotes = state.currentShape.expectedNotes.length;
-        promptEl.innerHTML = `<span class="prompt-label">Build:</span> ${state.currentShape.label} <span class="prompt-label" style="margin-left:0.5rem;">(${numNotes} notes)</span>`;
+        const shapeHint = state.currentShape.shapeNote ? ` <span class="prompt-label" style="margin-left:0.3rem;">${state.currentShape.shapeNote}</span>` : '';
+        promptEl.innerHTML = `<span class="prompt-label">Build:</span> ${state.currentShape.label}${shapeHint} <span class="prompt-label" style="margin-left:0.3rem;">(${numNotes} notes)</span>`;
       } else if (state.mode === 'chord-progression') {
         const idx = parseInt(progressionSelect.value) || 0;
         state.currentProgression = PROGRESSIONS[idx];
