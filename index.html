@@ -359,6 +359,65 @@
       margin-bottom: 0.5rem;
     }
 
+    /* Melody / Improv modes */
+    .melody-info {
+      font-size: 0.95rem;
+      color: #666;
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+    .improv-chord-name {
+      font-size: 2.2rem;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 0.5rem;
+      min-height: 2.5em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .improv-chord-name .chord-label {
+      color: #333;
+    }
+    .improv-timer-bar {
+      width: 100%;
+      max-width: 540px;
+      height: 6px;
+      background: #e0e0e0;
+      border-radius: 3px;
+      margin-bottom: 0.8rem;
+      overflow: hidden;
+    }
+    .improv-timer-fill {
+      height: 100%;
+      background: #4a90d9;
+      border-radius: 3px;
+      transition: width 0.1s linear;
+    }
+    .white-key.valid { background: #d4e8ff; border-color: #8bb8e8; }
+    .black-key.valid { background: #3a7ac0; border-color: #2a6cb9; }
+    .white-key.flash-correct { background: #8fdf8f; transition: background 0.05s; }
+    .black-key.flash-correct { background: #4caf50; transition: background 0.05s; }
+    .white-key.flash-wrong { background: #f08080; transition: background 0.05s; }
+    .black-key.flash-wrong { background: #d32f2f; transition: background 0.05s; }
+    .improv-controls {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: center;
+      margin-bottom: 0.8rem;
+    }
+    .improv-controls button {
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 0.4rem 1rem;
+      background: #333;
+      color: #fff;
+      border: 1px solid #333;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .improv-controls button:hover { background: #555; }
+
     @media (max-width: 500px) {
       .white-key { width: 28px; height: 110px; }
       .black-key { width: 20px; height: 70px; }
@@ -384,6 +443,8 @@
         <option value="chord-progression">Chord Progression</option>
         <option value="chord-shapes">Chord Shapes</option>
         <option value="name-shape">Name the Shape</option>
+        <option value="melody">Melody</option>
+        <option value="improv">Improv</option>
       </select>
     </label>
     <label id="clef-label">
@@ -428,6 +489,23 @@
         <option value="advanced">Advanced (all 12 keys)</option>
       </select>
     </label>
+    <label id="melody-label" style="display:none;">
+      Song:
+      <select id="melody-select"></select>
+    </label>
+    <label id="improv-prog-label" style="display:none;">
+      Progression:
+      <select id="improv-prog-select"></select>
+    </label>
+    <label id="improv-tempo-label" style="display:none;">
+      Tempo:
+      <select id="improv-tempo-select">
+        <option value="4000">Slow (4s)</option>
+        <option value="2000" selected>Medium (2s)</option>
+        <option value="1000">Fast (1s)</option>
+        <option value="0">Free Play</option>
+      </select>
+    </label>
     <label id="shapes-drill-label" style="display:none;">
       Drill:
       <select id="shapes-drill-select">
@@ -461,6 +539,13 @@
   <div class="staff-container" id="staff-container"></div>
 
   <div class="prompt" id="prompt" style="display:none;"></div>
+
+  <div id="improv-chord-name" class="improv-chord-name" style="display:none;"></div>
+  <div id="improv-timer-bar" class="improv-timer-bar" style="display:none;"><div id="improv-timer-fill" class="improv-timer-fill" style="width:100%;"></div></div>
+  <div id="improv-controls" class="improv-controls" style="display:none;">
+    <button id="improv-start-btn">Start</button>
+    <button id="improv-next-btn" style="display:none;">Next Chord &rarr;</button>
+  </div>
 
   <div class="piano-container">
     <div class="house-labels" id="house-labels"></div>
@@ -620,6 +705,54 @@
       { name: 'Canon in D', chords: [{root:'D',type:'major'},{root:'A',type:'major'},{root:'B',type:'minor'},{root:'F',type:'minor'},{root:'G',type:'major'},{root:'D',type:'major'},{root:'G',type:'major'},{root:'A',type:'major'}] },
     ];
 
+    // --- Melodies ---
+    // MIDI note numbers (C4=60, D4=62, E4=64, F4=65, G4=67, A4=69, B4=71, C5=72)
+    const MELODIES = [
+      { id: 'c_major_scale', name: 'C Major Scale', notes: [60,62,64,65,67,69,71,72,71,69,67,65,64,62,60] },
+      { id: 'hot_cross_buns', name: 'Hot Cross Buns', notes: [64,62,60, 64,62,60, 60,60,62,62, 64,62,60] },
+      { id: 'mary_had_a_little_lamb', name: 'Mary Had a Little Lamb', notes: [64,62,60,62,64,64,64, 62,62,62, 64,67,67, 64,62,60,62,64,64,64,64,62,62,64,62,60] },
+      { id: 'twinkle', name: 'Twinkle Twinkle Little Star', notes: [60,60,67,67,69,69,67, 65,65,64,64,62,62,60, 67,67,65,65,64,64,62, 67,67,65,65,64,64,62, 60,60,67,67,69,69,67, 65,65,64,64,62,62,60] },
+      { id: 'ode_to_joy', name: 'Ode to Joy', notes: [64,64,65,67,67,65,64,62,60,60,62,64,64,62,62, 64,64,65,67,67,65,64,62,60,60,62,64,62,60,60] },
+      { id: 'let_it_be', name: 'Let It Be (Beatles)', notes: [67,67,67,69,72,72,71,69,69,67, 67,67,69,67,65,64,64,62,60, 60,62,64,65,67,67,67,69,72,72,71,69,69,67, 67,67,69,67,65,64] },
+      { id: 'imagine', name: 'Imagine (John Lennon)', notes: [60,62,60,60,62,60, 60,62,64,67,67,65,64,62, 60,62,60,60,62,60, 60,62,64,67,67,65,64,62] },
+      { id: 'hey_jude', name: 'Hey Jude (Beatles)', notes: [67,64,64,65,62, 60,62,64,65,67, 69,67,65,67,65,64,60, 60,62,64,62,60,62] },
+    ];
+
+    // --- Improv Progressions ---
+    const IMPROV_PROGRESSIONS = [
+      { id: 'i_iv_v_i', name: 'I-IV-V-I in C', steps: [
+        { chord: 'C', pitchClasses: [0, 4, 7] },
+        { chord: 'F', pitchClasses: [5, 9, 0] },
+        { chord: 'G', pitchClasses: [7, 11, 2] },
+        { chord: 'C', pitchClasses: [0, 4, 7] },
+      ]},
+      { id: 'i_v_vi_iv', name: 'I-V-vi-IV in C ("Let It Be")', steps: [
+        { chord: 'C', pitchClasses: [0, 4, 7] },
+        { chord: 'G', pitchClasses: [7, 11, 2] },
+        { chord: 'Am', pitchClasses: [9, 0, 4] },
+        { chord: 'F', pitchClasses: [5, 9, 0] },
+      ]},
+      { id: 'ii_v_i', name: 'ii-V-I in C (Jazz)', steps: [
+        { chord: 'Dm', pitchClasses: [2, 5, 9] },
+        { chord: 'G', pitchClasses: [7, 11, 2] },
+        { chord: 'C', pitchClasses: [0, 4, 7] },
+      ]},
+      { id: '12_bar_blues', name: '12-Bar Blues in C', steps: [
+        { chord: 'C', pitchClasses: [0, 4, 7] },
+        { chord: 'C', pitchClasses: [0, 4, 7] },
+        { chord: 'C', pitchClasses: [0, 4, 7] },
+        { chord: 'C', pitchClasses: [0, 4, 7] },
+        { chord: 'F', pitchClasses: [5, 9, 0] },
+        { chord: 'F', pitchClasses: [5, 9, 0] },
+        { chord: 'C', pitchClasses: [0, 4, 7] },
+        { chord: 'C', pitchClasses: [0, 4, 7] },
+        { chord: 'G', pitchClasses: [7, 11, 2] },
+        { chord: 'F', pitchClasses: [5, 9, 0] },
+        { chord: 'C', pitchClasses: [0, 4, 7] },
+        { chord: 'G', pitchClasses: [7, 11, 2] },
+      ]},
+    ];
+
     // --- Chord Shapes ---
     const EASY_ROOTS = ['C','D','E','F','G','A','B'];
     const ALL_ROOTS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
@@ -747,6 +880,18 @@
       responseTimes: [],
       streak: 0,
       bestStreak: 0,
+      // Melody mode
+      currentMelody: null,
+      melodyIndex: 0,
+      melodyComplete: false,
+      // Improv mode
+      currentImprov: null,
+      improvIndex: 0,
+      improvTempo: 2000,
+      improvTimer: null,
+      improvTimerStart: 0,
+      improvRunning: false,
+      improvRaf: null,
     };
 
     // --- Settings ---
@@ -775,6 +920,36 @@
       progressionSelect.appendChild(opt);
     });
     progressionSelect.addEventListener('change', () => { newRound(); });
+
+    // Populate melody dropdown
+    const melodySelect = document.getElementById('melody-select');
+    MELODIES.forEach((m, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = m.name;
+      melodySelect.appendChild(opt);
+    });
+    melodySelect.addEventListener('change', () => { newRound(); });
+
+    // Populate improv dropdown
+    const improvProgSelect = document.getElementById('improv-prog-select');
+    IMPROV_PROGRESSIONS.forEach((p, i) => {
+      const opt = document.createElement('option');
+      opt.value = i;
+      opt.textContent = p.name;
+      improvProgSelect.appendChild(opt);
+    });
+    improvProgSelect.addEventListener('change', () => { stopImprov(); newRound(); });
+
+    const improvTempoSelect = document.getElementById('improv-tempo-select');
+    improvTempoSelect.addEventListener('change', () => {
+      state.improvTempo = parseInt(improvTempoSelect.value);
+      if (state.improvRunning && state.improvTempo > 0) {
+        // Restart timer with new tempo
+        clearInterval(state.improvTimer);
+        startImprovTimer();
+      }
+    });
 
     modeSelect.addEventListener('change', () => {
       state.mode = modeSelect.value;
@@ -813,16 +988,21 @@
       const isProgression = state.mode === 'chord-progression';
       const isShapes = state.mode === 'chord-shapes';
       const isNameShape = state.mode === 'name-shape';
+      const isMelody = state.mode === 'melody';
+      const isImprov = state.mode === 'improv';
       const isChordMode = isBuildChord || isNameChord;
 
+      // Stop improv timer when switching away
+      if (!isImprov) stopImprov();
+
       // Show/hide staff vs prompt
-      staffContainer.style.display = (isStaff || isNameChord || isProgression) ? '' : 'none';
+      staffContainer.style.display = (isStaff || isNameChord || isProgression || isMelody) ? '' : 'none';
       promptEl.style.display = (isFindKey || isNameKey || isBuildChord || isShapes || isNameShape) ? '' : 'none';
 
       // Show/hide staff-specific settings
       document.getElementById('clef-label').style.display = isStaff ? '' : 'none';
       document.getElementById('range-label').style.display = isStaff ? '' : 'none';
-      document.getElementById('acc-label').style.display = (isChordMode || isProgression || isShapes || isNameShape) ? 'none' : '';
+      document.getElementById('acc-label').style.display = (isChordMode || isProgression || isShapes || isNameShape || isMelody || isImprov) ? 'none' : '';
 
       // Show chord types setting
       document.getElementById('chord-types-label').style.display = isChordMode ? '' : 'none';
@@ -830,12 +1010,24 @@
       // Show progression selector
       document.getElementById('progression-label').style.display = isProgression ? '' : 'none';
 
+      // Show melody selector
+      document.getElementById('melody-label').style.display = isMelody ? '' : 'none';
+
+      // Show improv selectors
+      document.getElementById('improv-prog-label').style.display = isImprov ? '' : 'none';
+      document.getElementById('improv-tempo-label').style.display = isImprov ? '' : 'none';
+
+      // Show improv UI elements
+      document.getElementById('improv-chord-name').style.display = isImprov ? '' : 'none';
+      document.getElementById('improv-timer-bar').style.display = (isImprov && state.improvTempo > 0) ? '' : 'none';
+      document.getElementById('improv-controls').style.display = isImprov ? '' : 'none';
+
       // Show chord shapes settings
       document.getElementById('shapes-diff-label').style.display = (isShapes || isNameShape) ? '' : 'none';
       document.getElementById('shapes-drill-label').style.display = isShapes ? '' : 'none';
 
       // Show progress dots
-      document.getElementById('prog-progress').style.display = isProgression ? '' : 'none';
+      document.getElementById('prog-progress').style.display = (isProgression || isMelody) ? '' : 'none';
 
       // Show note buttons
       const showButtons = isNameKey || isNameChord || isProgression || isNameShape || (isShapes && state.shapesDrill === 'name-shape');
@@ -843,6 +1035,9 @@
       if (isNameKey) renderNoteButtons();
       if (isNameChord || isProgression) renderChordButtons();
       if (isNameShape || (isShapes && state.shapesDrill === 'name-shape')) renderShapeButtons();
+
+      // Hide score/challenge for improv (no scoring)
+      document.getElementById('challenge-btn').style.display = (isMelody || isImprov) ? 'none' : '';
 
       renderAcronyms();
       updateHouseLabels();
@@ -1024,6 +1219,16 @@
         if (state.mode === 'build-chord') {
           html += `<div class="clef-section"><span style="color:#888;">Click all the notes in the chord, then they'll be checked.</span></div>`;
         }
+      } else if (state.mode === 'melody') {
+        html += `<div class="clef-section">`;
+        html += `<h3>Melody Mode</h3>`;
+        html += `Play the highlighted note on the staff. The next note is shown faintly.`;
+        html += `</div>`;
+      } else if (state.mode === 'improv') {
+        html += `<div class="clef-section">`;
+        html += `<h3>Improv Mode</h3>`;
+        html += `Play any chord tone (highlighted in blue on the piano). Any octave works!`;
+        html += `</div>`;
       } else {
         // Keyboard modes: doghouse/grandma's house
         html += `<div class="clef-section">`;
@@ -1331,6 +1536,21 @@
           } else {
             newRound();
           }
+        }
+      } else if (state.mode === 'melody') {
+        // For piano click, find a MIDI note that matches (use octave 4 default)
+        const pc = NOTE_TO_SEMI[noteName];
+        if (pc !== undefined) {
+          const octave = parseInt(element.dataset.octave) || 4;
+          const midiNote = (octave + 1) * 12 + pc;
+          handleMelodyInput(midiNote);
+        }
+      } else if (state.mode === 'improv') {
+        const pc = NOTE_TO_SEMI[noteName];
+        if (pc !== undefined) {
+          const octave = parseInt(element.dataset.octave) || 4;
+          const midiNote = (octave + 1) * 12 + pc;
+          handleImprovInput(midiNote);
         }
       }
     }
@@ -1939,6 +2159,24 @@
         state.progResults = [];
         renderProgressionStaff(state.currentProgression, 0);
         renderProgDots();
+      } else if (state.mode === 'melody') {
+        const idx = parseInt(melodySelect.value) || 0;
+        state.currentMelody = MELODIES[idx];
+        state.melodyIndex = 0;
+        state.melodyComplete = false;
+        state.correct = 0;
+        state.total = 0;
+        updateScore();
+        renderMelodyStaff();
+        renderMelodyDots();
+        highlightMelodyKey(state.currentMelody.notes[0]);
+      } else if (state.mode === 'improv') {
+        stopImprov();
+        const idx = parseInt(improvProgSelect.value) || 0;
+        state.currentImprov = IMPROV_PROGRESSIONS[idx];
+        state.improvIndex = 0;
+        document.getElementById('improv-chord-name').innerHTML = `<span class="chord-label" style="color:#888;">Press Start to begin</span>`;
+        document.getElementById('improv-timer-bar').style.display = (state.improvTempo > 0) ? '' : 'none';
       }
     }
 
@@ -1960,6 +2198,267 @@
       }
     }
 
+    // --- Melody Mode ---
+    function midiNoteToStaffNote(midiNote) {
+      const noteNames = ['C','C','D','D','E','F','F','G','G','A','A','B'];
+      const isSharp =   [0,  1,  0,  1,  0,  0,  1,  0,  1,  0,  1,  0];
+      const pc = midiNote % 12;
+      const octave = Math.floor(midiNote / 12) - 1;
+      const name = noteNames[pc];
+      const accidental = isSharp[pc] ? '#' : '';
+      return { name, octave, accidental, staffPos: noteToStaffPos({ name, octave }) };
+    }
+
+    function renderMelodyStaff() {
+      const container = document.getElementById('staff-container');
+      const melody = state.currentMelody;
+      if (!melody) return;
+
+      const svgW = 340;
+      const lineSpacing = 10;
+      const trebleLines = [2, 4, 6, 8, 10];
+      const topPad = 50;
+      const svgH = 210;
+
+      let svg = `<svg width="${svgW}" height="${svgH}" viewBox="0 0 ${svgW} ${svgH}" xmlns="http://www.w3.org/2000/svg">`;
+
+      // Draw staff lines
+      const staffTop = topPad;
+      for (let i = 0; i < 5; i++) {
+        const y = staffTop + i * lineSpacing;
+        svg += `<line x1="40" y1="${y}" x2="${svgW - 20}" y2="${y}" stroke="#333" stroke-width="1"/>`;
+      }
+      svg += `<text x="45" y="${staffTop + 35}" font-size="52" font-family="serif" fill="#333">&#119070;</text>`;
+
+      const bottomLinePos = trebleLines[0];
+      const bottomLineY = staffTop + 4 * lineSpacing;
+
+      function drawNote(midiNote, noteX, color, opacity) {
+        const sn = midiNoteToStaffNote(midiNote);
+        const noteY = bottomLineY - (sn.staffPos - bottomLinePos) * (lineSpacing / 2);
+
+        // Ledger lines
+        if (noteY > bottomLineY + lineSpacing / 2) {
+          for (let ly = bottomLineY + lineSpacing; ly <= noteY + 1; ly += lineSpacing) {
+            svg += `<line x1="${noteX - 16}" y1="${ly}" x2="${noteX + 16}" y2="${ly}" stroke="#333" stroke-width="1" opacity="${opacity}"/>`;
+          }
+        }
+        if (noteY < staffTop - lineSpacing / 2) {
+          for (let ly = staffTop - lineSpacing; ly >= noteY - 1; ly -= lineSpacing) {
+            svg += `<line x1="${noteX - 16}" y1="${ly}" x2="${noteX + 16}" y2="${ly}" stroke="#333" stroke-width="1" opacity="${opacity}"/>`;
+          }
+        }
+
+        if (sn.accidental === '#') {
+          svg += `<text x="${noteX - 22}" y="${noteY + 5}" font-size="16" font-family="serif" fill="${color}" opacity="${opacity}">&#9839;</text>`;
+        }
+
+        svg += `<ellipse cx="${noteX}" cy="${noteY}" rx="8" ry="6" fill="${color}" opacity="${opacity}" transform="rotate(-10, ${noteX}, ${noteY})"/>`;
+        const stemDir = noteY > (staffTop + 2 * lineSpacing) ? -1 : 1;
+        const stemX = stemDir === -1 ? noteX + 7 : noteX - 7;
+        svg += `<line x1="${stemX}" y1="${noteY}" x2="${stemX}" y2="${noteY + stemDir * 35}" stroke="${color}" stroke-width="1.5" opacity="${opacity}"/>`;
+      }
+
+      // Draw current note (blue)
+      if (state.melodyIndex < melody.notes.length) {
+        drawNote(melody.notes[state.melodyIndex], 150, '#4a90d9', 1);
+      }
+
+      // Draw next note (gray, faint)
+      if (state.melodyIndex + 1 < melody.notes.length) {
+        drawNote(melody.notes[state.melodyIndex + 1], 220, '#bbb', 0.5);
+      }
+
+      svg += '</svg>';
+      container.innerHTML = svg;
+    }
+
+    function renderMelodyDots() {
+      const container = document.getElementById('prog-progress');
+      const melody = state.currentMelody;
+      if (!melody) { container.innerHTML = ''; return; }
+      let html = '';
+      for (let i = 0; i < melody.notes.length; i++) {
+        let cls = 'prog-dot';
+        if (i < state.melodyIndex) {
+          cls += ' done';
+        } else if (i === state.melodyIndex) {
+          cls += ' current';
+        }
+        html += `<div class="${cls}"></div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    function highlightMelodyKey(midiNote) {
+      if (!state.hints) return;
+      clearPianoHighlights();
+      const noteName = MIDI_NOTE_NAMES[midiNote % 12];
+      const isBlack = noteName.includes('#');
+      const selector = isBlack ? '.black-key' : '.white-key';
+      document.querySelectorAll(selector).forEach(key => {
+        if (key.dataset.note === noteName) key.classList.add('highlighted');
+      });
+    }
+
+    function clearPianoHighlights() {
+      document.querySelectorAll('.highlighted, .valid, .flash-correct, .flash-wrong').forEach(el => {
+        el.classList.remove('highlighted', 'valid', 'flash-correct', 'flash-wrong');
+      });
+    }
+
+    function handleMelodyInput(midiNote) {
+      if (!state.currentMelody || state.melodyComplete) return;
+      const expected = state.currentMelody.notes[state.melodyIndex];
+      if (midiNote === expected) {
+        state.correct++;
+        state.total++;
+        state.melodyIndex++;
+        updateScore();
+
+        if (state.melodyIndex >= state.currentMelody.notes.length) {
+          // Melody complete
+          state.melodyComplete = true;
+          clearPianoHighlights();
+          document.getElementById('feedback').textContent = `Melody complete! ${state.correct}/${state.total}`;
+          document.getElementById('feedback').style.color = '#4caf50';
+          renderMelodyDots();
+          renderMelodyStaff();
+        } else {
+          renderMelodyStaff();
+          renderMelodyDots();
+          highlightMelodyKey(state.currentMelody.notes[state.melodyIndex]);
+        }
+      } else {
+        state.total++;
+        updateScore();
+        // Flash the wrong key red briefly
+        const wrongName = MIDI_NOTE_NAMES[midiNote % 12];
+        const isBlack = wrongName.includes('#');
+        const selector = isBlack ? '.black-key' : '.white-key';
+        document.querySelectorAll(selector).forEach(key => {
+          if (key.dataset.note === wrongName) {
+            key.classList.add('flash-wrong');
+            setTimeout(() => key.classList.remove('flash-wrong'), 200);
+          }
+        });
+      }
+    }
+
+    // --- Improv Mode ---
+    function highlightImprovKeys(pitchClasses) {
+      clearPianoHighlights();
+      document.querySelectorAll('.white-key, .black-key').forEach(key => {
+        const noteName = key.dataset.note;
+        const pc = NOTE_TO_SEMI[noteName];
+        if (pc !== undefined && pitchClasses.includes(pc)) {
+          key.classList.add('valid');
+        }
+      });
+    }
+
+    function startImprov() {
+      const idx = parseInt(improvProgSelect.value) || 0;
+      state.currentImprov = IMPROV_PROGRESSIONS[idx];
+      state.improvIndex = 0;
+      state.improvRunning = true;
+      state.improvTempo = parseInt(improvTempoSelect.value);
+
+      document.getElementById('improv-start-btn').textContent = 'Stop';
+      document.getElementById('improv-next-btn').style.display = state.improvTempo === 0 ? '' : 'none';
+
+      renderImprovStep();
+
+      if (state.improvTempo > 0) {
+        startImprovTimer();
+      }
+    }
+
+    function startImprovTimer() {
+      state.improvTimerStart = performance.now();
+      document.getElementById('improv-timer-bar').style.display = '';
+
+      function tick() {
+        if (!state.improvRunning || state.improvTempo === 0) return;
+        const elapsed = performance.now() - state.improvTimerStart;
+        const pct = Math.max(0, 1 - elapsed / state.improvTempo) * 100;
+        document.getElementById('improv-timer-fill').style.width = pct + '%';
+
+        if (elapsed >= state.improvTempo) {
+          advanceImprov();
+        } else {
+          state.improvRaf = requestAnimationFrame(tick);
+        }
+      }
+      state.improvRaf = requestAnimationFrame(tick);
+    }
+
+    function advanceImprov() {
+      if (!state.currentImprov) return;
+      state.improvIndex = (state.improvIndex + 1) % state.currentImprov.steps.length;
+      renderImprovStep();
+      if (state.improvTempo > 0) {
+        state.improvTimerStart = performance.now();
+        // Continue the RAF loop
+        if (!state.improvRaf) startImprovTimer();
+      }
+    }
+
+    function renderImprovStep() {
+      const step = state.currentImprov.steps[state.improvIndex];
+      document.getElementById('improv-chord-name').innerHTML = `<span class="chord-label">${step.chord}</span>`;
+      highlightImprovKeys(step.pitchClasses);
+      document.getElementById('improv-timer-fill').style.width = '100%';
+    }
+
+    function stopImprov() {
+      state.improvRunning = false;
+      if (state.improvTimer) { clearInterval(state.improvTimer); state.improvTimer = null; }
+      if (state.improvRaf) { cancelAnimationFrame(state.improvRaf); state.improvRaf = null; }
+      clearPianoHighlights();
+      document.getElementById('improv-start-btn').textContent = 'Start';
+      document.getElementById('improv-next-btn').style.display = 'none';
+      document.getElementById('improv-timer-fill').style.width = '100%';
+    }
+
+    function handleImprovInput(midiNote) {
+      if (!state.improvRunning || !state.currentImprov) return;
+      const step = state.currentImprov.steps[state.improvIndex];
+      const pc = midiNote % 12;
+      const isValid = step.pitchClasses.includes(pc);
+
+      // Flash feedback on the key
+      const noteName = MIDI_NOTE_NAMES[midiNote % 12];
+      const isBlack = noteName.includes('#');
+      const selector = isBlack ? '.black-key' : '.white-key';
+      const flashClass = isValid ? 'flash-correct' : 'flash-wrong';
+
+      document.querySelectorAll(selector).forEach(key => {
+        if (key.dataset.note === noteName) {
+          key.classList.add(flashClass);
+          setTimeout(() => {
+            key.classList.remove(flashClass);
+            // Re-apply valid highlight if still on same chord
+            if (state.improvRunning && step.pitchClasses.includes(NOTE_TO_SEMI[noteName])) {
+              key.classList.add('valid');
+            }
+          }, 150);
+        }
+      });
+    }
+
+    // Wire up improv buttons
+    document.getElementById('improv-start-btn').addEventListener('click', () => {
+      if (state.improvRunning) {
+        stopImprov();
+      } else {
+        startImprov();
+      }
+    });
+    document.getElementById('improv-next-btn').addEventListener('click', () => {
+      if (state.improvRunning) advanceImprov();
+    });
+
     // --- Keyboard Input ---
     //  w e   t y u       →  C# D#   F# G# A#
     // a s d f g h j      →  C  D  E  F  G  A  B
@@ -1973,6 +2472,20 @@
     document.addEventListener('keydown', (ev) => {
       if (ev.repeat) return;
       const key = ev.key.toLowerCase();
+
+      // Spacebar: advance improv in free play, or restart melody
+      if (ev.key === ' ') {
+        ev.preventDefault();
+        if (state.mode === 'improv' && state.improvRunning && state.improvTempo === 0) {
+          advanceImprov();
+        } else if (state.mode === 'improv' && !state.improvRunning) {
+          startImprov();
+        } else if (state.mode === 'melody' && state.melodyComplete) {
+          clearFeedback();
+          newRound();
+        }
+        return;
+      }
 
       let noteName = null;
       let isBlack = false;
@@ -2021,6 +2534,16 @@
       const [status, note, velocity] = msg.data;
       // Note On: status 0x90-0x9F with velocity > 0
       if ((status & 0xF0) === 0x90 && velocity > 0) {
+        // For melody and improv, use exact MIDI note number
+        if (state.mode === 'melody') {
+          handleMelodyInput(note);
+          return;
+        }
+        if (state.mode === 'improv') {
+          handleImprovInput(note);
+          return;
+        }
+
         const noteName = midiNoteToName(note);
         const isBlack = noteName.includes('#');
         const selector = isBlack ? '.black-key' : '.white-key';
