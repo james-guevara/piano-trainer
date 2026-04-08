@@ -545,6 +545,10 @@
   <div id="improv-controls" class="improv-controls" style="display:none;">
     <button id="improv-start-btn">Start</button>
     <button id="improv-next-btn" style="display:none;">Next Chord &rarr;</button>
+    <button id="improv-demo-btn">Demo</button>
+  </div>
+  <div id="melody-controls" class="improv-controls" style="display:none;">
+    <button id="melody-demo-btn">Demo</button>
   </div>
 
   <div class="piano-container">
@@ -992,8 +996,9 @@
       const isImprov = state.mode === 'improv';
       const isChordMode = isBuildChord || isNameChord;
 
-      // Stop improv timer when switching away
+      // Stop improv/demo timers when switching away
       if (!isImprov) stopImprov();
+      stopDemo();
 
       // Show/hide staff vs prompt
       staffContainer.style.display = (isStaff || isNameChord || isProgression || isMelody) ? '' : 'none';
@@ -1021,6 +1026,7 @@
       document.getElementById('improv-chord-name').style.display = isImprov ? '' : 'none';
       document.getElementById('improv-timer-bar').style.display = (isImprov && state.improvTempo > 0) ? '' : 'none';
       document.getElementById('improv-controls').style.display = isImprov ? '' : 'none';
+      document.getElementById('melody-controls').style.display = isMelody ? '' : 'none';
 
       // Show chord shapes settings
       document.getElementById('shapes-diff-label').style.display = (isShapes || isNameShape) ? '' : 'none';
@@ -2457,6 +2463,126 @@
     });
     document.getElementById('improv-next-btn').addEventListener('click', () => {
       if (state.improvRunning) advanceImprov();
+    });
+
+    // --- Demo Mode ---
+    let demoTimer = null;
+    let demoRunning = false;
+
+    function stopDemo() {
+      demoRunning = false;
+      if (demoTimer) { clearTimeout(demoTimer); demoTimer = null; }
+      document.getElementById('melody-demo-btn').textContent = 'Demo';
+      document.getElementById('improv-demo-btn').textContent = 'Demo';
+    }
+
+    function flashKey(noteName, cls, duration) {
+      const isBlack = noteName.includes('#');
+      const selector = isBlack ? '.black-key' : '.white-key';
+      document.querySelectorAll(selector).forEach(key => {
+        if (key.dataset.note === noteName) {
+          key.classList.add(cls);
+          setTimeout(() => key.classList.remove(cls), duration);
+        }
+      });
+    }
+
+    function startMelodyDemo() {
+      if (demoRunning) { stopDemo(); return; }
+      // Reset melody state
+      const idx = parseInt(melodySelect.value) || 0;
+      state.currentMelody = MELODIES[idx];
+      state.melodyIndex = 0;
+      state.melodyComplete = false;
+      state.correct = 0;
+      state.total = 0;
+      updateScore();
+      renderMelodyStaff();
+      renderMelodyDots();
+      highlightMelodyKey(state.currentMelody.notes[0]);
+
+      demoRunning = true;
+      document.getElementById('melody-demo-btn').textContent = 'Stop Demo';
+      document.getElementById('feedback').textContent = 'Demo playing...';
+      document.getElementById('feedback').style.color = '#4a90d9';
+
+      function stepMelody() {
+        if (!demoRunning || !state.currentMelody) return;
+        if (state.melodyIndex >= state.currentMelody.notes.length) {
+          // Done
+          stopDemo();
+          document.getElementById('feedback').textContent = 'Demo complete!';
+          document.getElementById('feedback').style.color = '#4caf50';
+          return;
+        }
+
+        const midiNote = state.currentMelody.notes[state.melodyIndex];
+        const noteName = MIDI_NOTE_NAMES[midiNote % 12];
+
+        // Flash the correct key green
+        flashKey(noteName, 'flash-correct', 350);
+
+        // Advance
+        state.melodyIndex++;
+        state.correct++;
+        state.total++;
+        updateScore();
+        renderMelodyStaff();
+        renderMelodyDots();
+
+        if (state.melodyIndex < state.currentMelody.notes.length) {
+          highlightMelodyKey(state.currentMelody.notes[state.melodyIndex]);
+          demoTimer = setTimeout(stepMelody, 500);
+        } else {
+          state.melodyComplete = true;
+          clearPianoHighlights();
+          demoTimer = setTimeout(() => {
+            stopDemo();
+            document.getElementById('feedback').textContent = 'Demo complete!';
+            document.getElementById('feedback').style.color = '#4caf50';
+          }, 500);
+        }
+      }
+
+      demoTimer = setTimeout(stepMelody, 600);
+    }
+
+    function startImprovDemo() {
+      if (demoRunning) { stopDemo(); stopImprov(); return; }
+
+      // Start improv normally
+      startImprov();
+      demoRunning = true;
+      document.getElementById('improv-demo-btn').textContent = 'Stop Demo';
+      document.getElementById('feedback').textContent = 'Demo playing...';
+      document.getElementById('feedback').style.color = '#4a90d9';
+
+      function playRandomChordTone() {
+        if (!demoRunning || !state.improvRunning || !state.currentImprov) return;
+        const step = state.currentImprov.steps[state.improvIndex];
+        // Pick a random valid pitch class and play it
+        const pc = step.pitchClasses[Math.floor(Math.random() * step.pitchClasses.length)];
+        // Pick a random octave (3-5) for the note
+        const octave = 3 + Math.floor(Math.random() * 3);
+        const midiNote = (octave + 1) * 12 + pc;
+        handleImprovInput(midiNote);
+
+        // Schedule next note
+        const interval = 300 + Math.random() * 400; // 300-700ms
+        demoTimer = setTimeout(playRandomChordTone, interval);
+      }
+
+      demoTimer = setTimeout(playRandomChordTone, 400);
+    }
+
+    document.getElementById('melody-demo-btn').addEventListener('click', startMelodyDemo);
+    document.getElementById('improv-demo-btn').addEventListener('click', () => {
+      if (demoRunning) {
+        stopDemo();
+        stopImprov();
+      } else {
+        startImprovDemo();
+      }
     });
 
     // --- Keyboard Input ---
